@@ -230,6 +230,89 @@ class Att_DCNN():
         
         return Model(x_in,x,name='ProposedModle')
     
+    # ///////////////////////////////////////////////////////
+    
+    def finetune_Model(self,input_shape):
+        x_in = Input(input_shape,name='input')
+        def slice(x,index):
+            return x[:,index,:]
+        x1 = Lambda(slice,arguments={'index':0})(x_in)
+        x2 = Lambda(slice,arguments={'index':1})(x_in)
+        # 添加计算cosine similarity 的层
+        class CosineLayer():
+            def __call__(self, x1, x2):
+                def _cosine(x):
+                    print(len(x))
+                    print(x[1].shape)
+                    dot1 = K.batch_dot(x[0], x[1], axes=1)  # a*b
+                    dot2 = K.batch_dot(x[0], x[0], axes=1) # a*a
+                    dot3 = K.batch_dot(x[1], x[1], axes=1) # b*b
+                    max_ = K.maximum(K.sqrt(dot2 * dot3), K.epsilon()) # a*b/(a*a)*(b*b)
+                    return dot1 / max_
+        
+                output_shape = (1,)
+                value = Lambda(_cosine,output_shape=output_shape)([x1, x2])
+                return value
+            
+        cosine = CosineLayer()
+        x = cosine(x1, x2)
+        x = Dense(1,activation='sigmoid',name='logistic')(x)    
+        # print(x.shape)
+        return Model(x_in,x,name='logistic')  
+    
+    
+    def new_finetune_Model(self,input_shape):
+        
+        x_in = Input(input_shape,name='input')
+        
+        x = Conv2D(64,kernel_size=(3,3),strides=(1,1),padding='same',name='conv1',
+            kernel_regularizer=regularizers.l2(l=self.WEIGHT_DECAY))(x_in) 
+        
+        X = BatchNormalization(name='bn1')(x)
+        
+        x = Activation('relu',name='relu1')(x)
+
+        x = MaxPool2D(pool_size=(3,3),strides=(2,2),padding='same',name='pool1')(x)
+        
+        x = self.attentive_ResBlock(x,256,self.layers_num[0],name='block0',strides=(1,1))  # (1,1)
+        
+        x = self.attentive_ResBlock(x,512,self.layers_num[1],name='block1',strides=(2,2))
+        
+        x = self.attentive_ResBlock(x,1024,self.layers_num[2],name='block2',strides=(2,2))
+
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
+        
+        x = Dense(1024,name='fc1')(x)
+        
+        x = BatchNormalization(name='bn_fc1')(x)
+        
+        x = Activation('relu',name='fc1_relu')(x)
+        
+        def slice(x,index):
+            return x[:,index,:]
+        x1 = Lambda(slice,arguments={'index':0})(x)
+        x2 = Lambda(slice,arguments={'index':1})(x)
+        # 添加计算cosine similarity 的层
+        class CosineLayer():
+            def __call__(self, x1, x2):
+                def _cosine(x):
+                    print(len(x))
+                    print(x[1].shape)
+                    dot1 = K.batch_dot(x[0], x[1], axes=1)  # a*b
+                    dot2 = K.batch_dot(x[0], x[0], axes=1) # a*a
+                    dot3 = K.batch_dot(x[1], x[1], axes=1) # b*b
+                    max_ = K.maximum(K.sqrt(dot2 * dot3), K.epsilon()) # a*b/(a*a)*(b*b)
+                    return dot1 / max_
+        
+                output_shape = (1,)
+                value = Lambda(_cosine,output_shape=output_shape)([x1, x2])
+                return value
+            
+        cosine = CosineLayer()
+        x = cosine(x1, x2)
+        x = Dense(1,activation='sigmoid',name='logistic')(x)    
+        # print(x.shape)
+        return Model(x_in,x,name='fine_tune')  
     
 if __name__ == "__main__":
     model = Att_DCNN()

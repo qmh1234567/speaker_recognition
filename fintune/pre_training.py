@@ -2,10 +2,11 @@
 # -*- coding: UTF-8 -*-
 
 # __author__: Qmh
-# __file_name__: run.py
+# __file_name__: run.py  使用softmax进行预训练
 # __time__: 2019:06:27:20:53
 
 import pandas as pd
+import constants as c
 import os
 import tensorflow as tf
 from collections import Counter
@@ -34,6 +35,7 @@ import usedModels.Att_DCNN as Att_DCNN
 import utils.DataLoad as DataLoad
 import utils.Util as Util
 import utils.LossHistory as LossHistory
+
 
 # OPTIONAL: control usage of GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"

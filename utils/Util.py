@@ -88,7 +88,7 @@ class Util():
         return y_pro
     
     # 测试SI 
-    def speaker_identification(self,enroll_dataset, distances, enroll_y):
+    def speaker_identification(self, distances, enroll_y):
         #  remove repeat
         new_enroll_y = list(set(enroll_y))
         new_enroll_y.sort(key=list(enroll_y).index)
@@ -98,4 +98,5 @@ class Util():
         for i in socre_index:
             y_pre.append(new_enroll_y[i])
         return y_pre  # 获得每一句的说话人
+    
     

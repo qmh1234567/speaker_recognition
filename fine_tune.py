@@ -6,6 +6,7 @@
 # __time__: 2019:06:27:20:53
 
 import pandas as pd
+import constants as c
 import os
 import tensorflow as tf
 from collections import Counter
@@ -35,6 +36,8 @@ import utils.DataLoad as DataLoad
 import utils.Util as Util
 import utils.LossHistory as LossHistory
 
+from triplet_loss import deep_speaker_loss
+
 # OPTIONAL: control usage of GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 config = tf.compat.v1.ConfigProto()
@@ -43,8 +46,8 @@ config.gpu_options.per_process_gpu_memory_fraction = 0.7
 sess = tf.compat.v1.Session(config=config)
 
 MODEL_DIR = './checkpoint/' # 模型保存目录
-LEARN_RATE = 0.01 # 学习率
-BATCH_SIZE = 32
+LEARN_RATE = 0.001 # 学习率
+BATCH_SIZE = 16
 EPOCHS = 300# 训练轮次
 
 # 选择模型
@@ -60,13 +63,18 @@ def createModel(modelName,input_shape=(299,40,1)):
     # print(model.summary())
     return model
 
+# fine tune
+def model_fn(input_shape=(299,40,1)):
+    model = Att_DCNN.Att_DCNN().finetune_Model(input_shape)
+    print(model.summary())
+    return model
+
 # add softmax layer
 def addSoftmax(model,nclass):
     x = model.output
     x = Dense(nclass, activation='softmax', name=f'softmax')(x)
     model = Model(model.input, x)
     return model
-
 
 def train(model,dataLoad,hparams):
     
@@ -82,21 +90,27 @@ def train(model,dataLoad,hparams):
     print("nclass = ",nclass)
     
     labels_to_id = dataLoad.Map_label_to_dict(train_dataset[1])
-    
-    model = addSoftmax(model,nclass) 
-    
-    # print(model.summary())
-    
+
+    # 微调模型    
+    # model = model_fn()
+    # 加载预训练模型权重
+    model.load_weights(f'{model_dir}/best.h5', by_name='True')
+
     
     # train model
-    
+    # print(model.summary())
+    model = addSoftmax(model,nclass) 
+
     history = LossHistory.LossHistory()
     
     sgd = optimizers.SGD(lr=LEARN_RATE,momentum=0.9) #TIMIT libri-seresnet
     
-    model.compile(loss='categorical_crossentropy', optimizer=sgd,
+    model.compile(loss='categorical_crossentropy',optimizer=sgd,
                     metrics=['accuracy'])
+
     
+    
+    # 数据集有问题，需要自己构建！！！！  输入utterance 输出 true or false
     
     model.fit_generator(dataLoad.Batch_generator(train_dataset, labels_to_id, BATCH_SIZE, nclass),
                         steps_per_epoch=len(train_dataset[0])//BATCH_SIZE, epochs=EPOCHS,
@@ -104,11 +118,11 @@ def train(model,dataLoad,hparams):
                             val_dataset, labels_to_id, nclass),
                         validation_steps=len(val_dataset[0])//BATCH_SIZE,
                         callbacks=[
-                            ModelCheckpoint(f'{model_dir}/best.h5',
+                            ModelCheckpoint(f'{model_dir}/best_ft.h5',
                                 monitor='val_loss', save_best_only=True, mode='min'),
                             ReduceLROnPlateau(monitor='val_loss', factor=0.1,
                                 patience=50, mode='min'),
-                            # EarlyStopping(monitor='val_loss', patience=10),
+                            EarlyStopping(monitor='val_loss', patience=10),
                             history,
     ])
     
@@ -127,7 +141,7 @@ def test(model,dataLoad,util,hparams):
     
     # load weights
     model_dir = MODEL_DIR + hparams.model_name
-    model.load_weights(f'{model_dir}/best.h5', by_name='True')
+    model.load_weights(f'{model_dir}/best_ft.h5',by_name=True)
         
     # load all data
     print("loading data...") 
@@ -135,16 +149,18 @@ def test(model,dataLoad,util,hparams):
     (test_x, test_y) = dataLoad.load_all_data(test_dataset, 'test')
     
     # 预测  主要获取说话人嵌入
-    enroll_pre = np.squeeze(model.predict(enroll_x))
-    test_pre = np.squeeze(model.predict(test_x))
+    # enroll_pre = np.squeeze(model.predict(enroll_x))
+    print(model.predict(test_x).shape)
     
-    # 计算余弦距离
-    distances = util.caculate_distance(enroll_pre, test_pre)
+    test_pre = np.squeeze(model.predict(test_x))
+    exit()
     
     if hparams.target=="SI":
-        # speaker identification
+        # # speaker identification
         test_y_pre = util.speaker_identification(
-            enroll_dataset, distances, enroll_y)
+            test_pre, enroll_y)
+        
+        print(test_y_pre)
         
         # compute result
         result = util.compute_result(test_y_pre, test_y)

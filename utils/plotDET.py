@@ -123,8 +123,38 @@ class PlotDET():
 
 
     def main(self,hparams):
-
         
+        b_frr,b_far = self.compute_frr_far(hparams.y_true,hparams.y_pre)
+        p_frr,p_far = self.compute_frr_far(hparams.y_true_p,hparams.y_pre_p)
+        # 画图
+        plt = self.plot_DET_curve()
+        x, y = norm.ppf(b_frr), norm.ppf(b_far)
+        plt.plot(x, y,label='baseline model')
+        x1,y1 = norm.ppf(p_frr),norm.ppf(p_far)
+        plt.plot(x1,y1,label='proposed model')
+        # plt.plot([-40, 1], [-40, 1])
+        plt.legend(fontsize=12)
+        plt.xlabel('False Alarm probability(in %)', fontsize=12)
+        plt.ylabel('Miss probability', fontsize=12)
+        plt.show()
+        
+        # 计算分数
+        eer = compute_EER(b_frr,b_far)
+
+        min_DCF_2 = compute_minDCF2(b_frr*100,b_far*100)
+
+        min_DCF_3 = compute_minDCF3(b_frr*100,b_far*100,min_DCF_2)
+        
+        print(f'baseline model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
+
+        eer = compute_EER(p_frr,p_far)
+
+        min_DCF_2 = compute_minDCF2(p_frr*100,p_far*100)
+
+        min_DCF_3 = compute_minDCF3(p_frr*100,p_far*100,min_DCF_2)
+        
+        print(f'proposed model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
+            
 
 if __name__ == "__main__":
     plotDET = PlotDET()
@@ -133,13 +163,11 @@ if __name__ == "__main__":
             
     parser.add_argument("--y_true",type=str,help="the true lable file",default="./dataset/y_true.npy")
 
-    parser.add_argument("--model_name",type=str,required=True,help="model's name",choices=["deepSpk","VggVox","SEResNet","AttDCNN"])
+    parser.add_argument("--y_pre",type=str,help="the pre lable file",default="./dataset/y_pre.npy")
     
-    parser.add_argument("--target",type=str,required=True,help="SV or SI ,which is used in test stage",choices=["SV","SI"])
+    parser.add_argument("--y_true_p",type=str,help="the proposed model's true lable file",default="./dataset/y_true_p.npy")
     
-    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train")
-    
-    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test")
+    parser.add_argument("--y_pre_p",type=str,help="the proposed model's true lable file",default="./dataset/y_pre_p.npy")
     
     args = parser.parse_args()
     
