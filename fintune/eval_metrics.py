@@ -1,4 +1,8 @@
 import numpy as np
+from sklearn import metrics
+from sklearn.utils.multiclass import type_of_target
+import math
+
 
 def evaluate(sims, labels):
     # Calculate evaluation metrics
@@ -7,7 +11,7 @@ def evaluate(sims, labels):
         labels)
     eer = calculate_eer(thresholds, sims,
         labels)
-    return fm, tpr, acc, eer
+    return fm, acc, eer
 
 
 def calculate_roc(thresholds, sims, labels):

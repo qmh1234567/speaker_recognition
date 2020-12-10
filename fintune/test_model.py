@@ -84,18 +84,23 @@ def to_inputs(dataset_batch,num_triplets):
 
         x = np.array(new_x) #（1530，299，40，1）
         # y = dataset_batch['speaker_id'].values  #（1530）
-        new_y = np.hstack(([1,1],np.zeros(num_neg)))  # 1 positive, num_neg negative
-        y = np.tile(new_y, num_triplets)  # (one hot) （1500）
+        new_y = np.hstack(([1],np.zeros(num_neg)))  # 1 positive, num_neg negative 这里需要注意，没有anchor的参与！！！
+        y = np.tile(new_y, num_triplets)  # (one hot) （1500）  
         return x, y
 
 # 计算相似度
 def call_similar(x):
+    # x.shape[0]=1440 num_neg+2=51 no_batch=28
     no_batch = int(x.shape[0] / (num_neg+2))  # each batch was consisted of 1 anchor ,1 positive , num_neg negative, so the number of batch
     similar = []
     for ep in range(no_batch):
         index = ep*(num_neg + 2)  # index是anchor的开始位置
+        # print("index=",index)
+        # 将embedding沿x轴复制50份 （512）=>(50,512)
         anchor = np.tile(x[index], (num_neg + 1, 1))  #(50,512)
-        pos_neg = x[index+1: index + num_neg + 2]  #(50,512) 取anchor后面的postive和negative
+        #取anchor后面的postive和negative，共50句
+        pos_neg = x[index+1: index + num_neg + 2]  #(50,512) 
+        # 计算anchor和其他句子之间的相似度
         sim = batch_cosine_similarity(anchor, pos_neg)
         similar.extend(sim)
     return np.array(similar)
@@ -105,18 +110,19 @@ def call_similar(x):
 def batch_cosine_similarity(x1,x2):
     # https://en.wikipedia.org/wiki/Cosine_similarity
     # 1 = equal direction ; -1 = opposite direction
+    # 方法1
     mul = np.multiply(x1, x2)
     s = np.sum(mul,axis=1)
-
-    #l1 = np.sum(np.multiply(x1, x1),axis=1)
-    #l2 = np.sum(np.multiply(x2, x2), axis=1)
-    # as values have have length 1, we don't need to divide by norm (as it is 1)
+    # 方法2 同方法1计算出的结果是一致的
+    # s1 = []
+    # for i in range(0,x1.shape[0]):
+    #     sm = np.dot(x1[i], x2[i])/(np.linalg.norm(x1[i])*np.linalg.norm(x2[i]))# 计算余弦距离
+    #     s1.append(sm)  
     return s
 
 # 评估模型
 def eval_model(model,dataset,train_batch_size=BATCH_SIZE*TRIPLET_PER_BATCH,check_partial=False):
     x,y_true = create_test_data(dataset,check_partial)
-
     batch_size = x.shape[0]
     b = x[0]
     input_shape = (b.shape[0],b.shape[1],b.shape[2])
@@ -136,8 +142,8 @@ def eval_model(model,dataset,train_batch_size=BATCH_SIZE*TRIPLET_PER_BATCH,check
     nrof_pairs = min(len(y_pred), len(y_true))
     y_pred = y_pred[:nrof_pairs]
     y_true = y_true[:nrof_pairs]
-    fm, tpr, acc, eer = evaluate(y_pred, y_true)
-    return fm, tpr, acc, eer
+    fm, acc, eer = evaluate(y_pred, y_true)
+    return fm, acc, eer
 
 
 

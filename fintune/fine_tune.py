@@ -77,7 +77,7 @@ def createModel(modelName,input_shape=(299,40,1)):
 
 
 def train(model,dataLoad,hparams):
-    Num_Iter = 1000000
+    Num_Iter = 10000
     current_iter = 0
     grad_steps = 0
     lasteer = 10
@@ -111,21 +111,21 @@ def train(model,dataLoad,hparams):
         # 每10步评估一下模型
         if (grad_steps) % 10 == 0:
             
-            fm1, tpr1, acc1, eer1 = eval_model(model,train_dataset, hparams.batch_size*hparams.triplet_per_batch, check_partial=True)
+            fm1, acc1, eer1 = eval_model(model,train_dataset, hparams.batch_size*hparams.triplet_per_batch, check_partial=True)
             logging.info('test training data EER = {0:.3f}, F-measure = {1:.3f}, Accuracy = {2:.3f} '.format(eer1, fm1, acc1))
             
-            with open('./train_acc_eer.txt', "w") as f:
+            with open('./train_acc_eer.txt', "a") as f:
                 f.write("{0},{1},{2},{3}\n".format(grad_steps, eer1, fm1, acc1))
-                
+
         # 每200步，测试一下模型
         if (grad_steps ) % TEST_PER_EPOCHS == 0 :
             
-            fm, tpr, acc, eer = eval_model(model,test_dataset,hparams.batch_size*hparams.triplet_per_batch,check_partial=False)
+            fm, acc, eer = eval_model(model,test_dataset,hparams.batch_size*hparams.triplet_per_batch,check_partial=False)
             
             logging.info('== Testing model after batch #{0}'.format(grad_steps))
             logging.info('EER = {0:.3f}, F-measure = {1:.3f}, Accuracy = {2:.3f} '.format(eer, fm, acc))
             
-            with open('./test_log.txt', "w") as f:
+            with open('./test_log.txt', "a") as f:
                 f.write("{0},{1},{2},{3}\n".format(grad_steps, eer, fm, acc))
 
         # 每200步保存一下模型
