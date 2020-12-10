@@ -128,6 +128,7 @@ def test(model,dataLoad,util,hparams):
     # load weights
     model_dir = MODEL_DIR + hparams.model_name
     model.load_weights(f'{model_dir}/best.h5', by_name='True')
+    # model.load_weights(f'{model_dir}/save/best_model0_0.04939.h5', by_name='True')
         
     # load all data
     print("loading data...") 
@@ -139,12 +140,11 @@ def test(model,dataLoad,util,hparams):
     test_pre = np.squeeze(model.predict(test_x))
     
     # 计算余弦距离
-    distances = util.caculate_distance(enroll_pre, test_pre)
+    distances = util.caculate_distance(enroll_dataset,enroll_pre, test_pre)
     
     if hparams.target=="SI":
         # speaker identification
-        test_y_pre = util.speaker_identification(
-            enroll_dataset, distances, enroll_y)
+        test_y_pre = util.speaker_identification(distances, enroll_y)
         
         # compute result
         result = util.compute_result(test_y_pre, test_y)

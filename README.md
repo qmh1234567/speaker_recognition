@@ -1,16 +1,4 @@
-# ResCNN_speaker_recognition
-运行准备：
-1. 下载library_speech数据集，地址：http://www.openslr.org/resources/12/。
-共三个文件夹：	train-clean-100.tar.gz, test-clean.tar.gz,	dev-clean.tar.gz。
-2. 将convert_flac_2_wav_sox.sh复制到数据集所在目录，该文件是将.flac转化为.wav. 参考地址:https://github.com/Walleclipse/Deep_Speaker-speaker_recognition_system
-  
-3. 在train-clean和test-clean目录下新建wav文件夹，将所有音频文件都剪切进去。
-
-运行说明:
-1. 修改constants.py 中的数据集路径:TRAIN_DEV_SET_LB和TEST_SET_LB,改成您下载的library speech的相应目录.
-2. 运行preprocess.py,特征文件生成在下载的library speech的对应目录下的npy文件夹.
-3. 运行python run.py train_lb命令进行训练模型,模型有两个:rescnn和deepspeaker,目前两个的SI效果都不太好.
-4. 运行python run.py test_lb命令进行测试,设置constants.py中的TARGET切换SI或SV.
+# Spaker_recognition
 
 #### 运行环境说明：
   系统：ubuntu
@@ -24,16 +12,27 @@
 文件大小440M，是完整的数据库。
 - 由于默认的目录名字和文件后缀都是大写的，而本项目只支持小写，可参考[shell递归遍历目录，修改文件名或者目录名](https://blog.csdn.net/qq_28228605/article/details/109963278)，将它们改为小写。
 
-##### 1. 安装所需依赖包
+#### 1. 安装所需依赖包
 
 ```bash
 $ pip install -r requirements.txt
 ```
 
-##### 2.运行预处理文件`preprocess.py`
+#### 2. 项目目录说明：
+  |  目录名   | 说明  |
+|  ----  | ----  |
+| dataset  | 暂无 |
+| fintune  | 与微调相关的文件夹 |
+| imgs | 实验中生成的一些图片|
+| usedModels | 存储各种模型 |
+| utils | 工具包 |
+| run.py | 预训练与测试脚本 |
+
+
+#### 3. 运行utils目录下的预处理文件`preprocess.py`
  - 运行命令：
- - `python preprocess.py --in_dir=TIMIT/train/ --pk_dir=/TIMIT_OUTPUT/train/ --data_type=mit`
-    - 参数说明：
+   - `python preprocess.py --in_dir=TIMIT/train/ --pk_dir=/TIMIT_OUTPUT/train/ --data_type=mit`
+  - 参数说明：
       - --in_dir: TIMIT数据集的目录，需要指定到train和test
       - --pk_dir: 预处理后的pickle文件保存目录，也是需要指定到train和test
       - --data_type:数据集类型，选择`mit`
@@ -111,10 +110,19 @@ $ pip install -r requirements.txt
 - 语谱图
   ![1](/imgs/spectrum.png)
 
-##### models目录下的模型介绍
+#### 4. 运行预训练脚本`run.py`
+  - 运行命令：`python run.py --stage="test" --model_name="deepSpk" --target="SV"` 
+  - 参数说明：
+    - --stage 表示实验阶段，train是训练阶段，test是测试阶段
+    - --model_name 表示模型名字，本项目的所有模型都在usedModels文件夹下。您也可以根据自己的需要设计模型。
+    - --target 表示实验目标，SV是说话人确认，SI是说话人辨认。该参数仅在test阶段起作用。
+
+
+#### 5. usedModels目录下的模型介绍
 - DeepSpeaker模型：[论文地址](https://arxiv.org/abs/1705.02304)
 - Rest34 和 Rest50模型： [论文地址](https://arxiv.org/abs/1806.05622)
   
+#### 6.各个模型的实验结果
 ##### Deep Speaker模型实验结果
 - loss曲线和acc曲线：
 ![1](/imgs/dpk_acc_loss.png)
@@ -126,20 +134,10 @@ score=0.875
   - acc=0.9164556962025316	 
   - auc_score=0.9761081081081081	
   - score=0.9164556962025316
-![1](/imgs/dpk_aucRoc.png)
+
 
 ##### VggVox模型实验结果
-- loss曲线和acc曲线：
-![1](/imgs/seResNet_acc_loss.png)
-- SI实验：
-score=0.945
-- SV实验：   
-  - eer=0.04695945945945948	 
-  - prauc=0.570774619855107 	 
-  - acc=0.9563291139240506	 
-  - auc_score=0.992331081081081	
-  - score=0.9563291139240506
-![1](/imgs/SEResNet_aucRoc.png)
+- 待添加
 
 
   
@@ -154,5 +152,70 @@ score=0.945
   - acc=0.9563291139240506	 
   - auc_score=0.992331081081081	
   - score=0.9563291139240506
-![1](/imgs/SEResNet_aucRoc.png)
 
+#### 使用Triplet loss对上述模型进行微调
+
+ > 主要参考这位大佬的[deep speaker 实验](https://github.com/Walleclipse/Deep_Speaker-speaker_recognition_system)
+
+ ##### 自己的改动
+ - 预处理和预训练部门均使用的自己的代码。微调部门参考了大佬的代码。
+ - 微调目录内容介绍：
+    |  脚本名   | 说明  | 改动说明 |
+    |  ----  | ----  |---|
+    | draw.py  | 绘制各种指标的曲线 | 一致 |
+    | eval_metrics.py  | 计算各种指标的函数| 没改,尝试改过，但是改过后计算出来的指标有问题，后面解决 |
+    | fine_tune.py | 微调的主脚本 | 改动了训练的代码，小改 |
+    | random_batch.py | 生成批次的脚本 | 大改，修改了数据加载方式 |
+    | test_model.py | 评估模型的脚本 | 小改，修改了余弦函数的计算|
+    | triplet_loss.py | 三元组损失计算脚本 | 一致 
+
+
+ ##### 自己的踩坑记录
+ 1. 训练结果中acc非常低,而且波动幅度过大，失败的训练结果如图：
+ ![1](/imgs/failedResult.png)
+    - 第一反映是自己的评估模型函数有问题，经过一上午的反复检查和理解代码，终于排查出了问题。原因在于此函数：
+  
+      ```python
+      # 构建输入和输出
+      def to_inputs(dataset_batch,num_triplets):
+            new_x = []
+
+            for i in range(len(dataset_batch)):
+                filename = dataset_batch[i:i + 1]['filename'].values[0]
+                with open(filename,"rb") as f:
+                    load_dict = pickle.load(f)
+                    x = load_dict["LogMel_Features"]
+                    x = x[:, :, np.newaxis]
+                    new_x.append(x)
+
+            x = np.array(new_x) #（1530，299，40，1）
+            # y = dataset_batch['speaker_id'].values  #（1530）
+            new_y = np.hstack(([1],np.zeros(num_neg)))  # 1 positive, num_neg negative 这里需要注意，没有anchor的参与！！！
+            y = np.tile(new_y, num_triplets)  # (one hot) （1500）  
+            return x, y
+      ```
+     - 当时在选择随即批次的那个脚本中也有相似函数，故我的第一直觉是x和y的shape要一样，于是自作聪明的写了`new_y = np.hstack(([1,1],np.zeros(num_neg)))`但实际上大佬的代码注释已经很清楚了，这里的label不需要考虑anchor了。因为在计算相似度时是用同一个anchor嵌入和所有的postive与negative的嵌入计算的余弦相似度。而这个相似度数组的长度是len(postive+negative)，即y_pred.
+     - 修改后得到的结果如下图：
+     ![1](/imgs/successedResult.png)
+
+1. 使用其他模型，如SEResNet时，出现ACC非常低的情况，除了acc其他指标也不正常。效果如下：
+   
+
+   - 这个错误我也排查了一会，首先数据集是不会有问题的，对于所有模型都是一样的。其次模型的加载也没有问题。唯一的问题也在评估模型的函数。我看了一下基本都是通用的，没有针对具体模型的函数。同时我也打印了一下y_pred,发现其他模型的y_pred非常大，数值为好几百,而deepSpk的y_pred在0到1之间。故猜想可能是余弦距离的计算函数出了问题，于是换成了常用的余弦距离计算函数，然后结果就恢复正常了。
+    
+    ```python
+      # 计算余弦距离 
+    def batch_cosine_similarity(x1,x2):
+        # https://en.wikipedia.org/wiki/Cosine_similarity
+        # 1 = equal direction ; -1 = opposite direction
+        # 方法1 方法1的结果会超过1
+        # mul = np.multiply(x1, x2)
+        # s = np.sum(mul,axis=1)
+        # 方法2 
+        s1 = []
+        for i in range(0,x1.shape[0]):
+            sm = np.dot(x1[i], x2[i])/(np.linalg.norm(x1[i])*np.linalg.norm(x2[i]))# 计算余弦距离
+            s1.append(sm)  
+        return np.array(s1)
+    ``` 
+  

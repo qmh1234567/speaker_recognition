@@ -110,15 +110,17 @@ def call_similar(x):
 def batch_cosine_similarity(x1,x2):
     # https://en.wikipedia.org/wiki/Cosine_similarity
     # 1 = equal direction ; -1 = opposite direction
-    # 方法1
-    mul = np.multiply(x1, x2)
-    s = np.sum(mul,axis=1)
-    # 方法2 同方法1计算出的结果是一致的
-    # s1 = []
-    # for i in range(0,x1.shape[0]):
-    #     sm = np.dot(x1[i], x2[i])/(np.linalg.norm(x1[i])*np.linalg.norm(x2[i]))# 计算余弦距离
-    #     s1.append(sm)  
-    return s
+    # 方法1 方法1的结果会超过1
+    # mul = np.multiply(x1, x2)
+    # s = np.sum(mul,axis=1)
+    # return s
+    # 方法2 
+    s1 = []
+    for i in range(0,x1.shape[0]):
+        sm = np.dot(x1[i], x2[i])/(np.linalg.norm(x1[i])*np.linalg.norm(x2[i]))# 计算余弦距离
+        s1.append(sm)  
+    return np.array(s1)
+    
 
 # 评估模型
 def eval_model(model,dataset,train_batch_size=BATCH_SIZE*TRIPLET_PER_BATCH,check_partial=False):

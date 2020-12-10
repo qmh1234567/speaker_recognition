@@ -77,7 +77,7 @@ def createModel(modelName,input_shape=(299,40,1)):
 
 
 def train(model,dataLoad,hparams):
-    Num_Iter = 10000
+    Num_Iter = 10001
     current_iter = 0
     grad_steps = 0
     lasteer = 10
@@ -93,7 +93,8 @@ def train(model,dataLoad,hparams):
     # 配置模型
     model.load_weights(f'{model_dir}/best.h5', by_name='True') # 加载预训练权重
     
-    model.compile(optimizer='adam', loss=deep_speaker_loss)
+    sgd = optimizers.SGD(lr=LEARN_RATE,momentum=0.9) #TIMIT libri-seresnet
+    model.compile(optimizer=sgd, loss=deep_speaker_loss)
      
     while current_iter <Num_Iter:
         current_iter += 1
@@ -101,20 +102,21 @@ def train(model,dataLoad,hparams):
         batch= stochastic_mini_batch(train_dataset,hparams.batch_size)
         x,y = batch.to_inputs()  #(96,299,40,1)
         # y = np.random.uniform(size=(x.shape[0],1))  # (96)
-    
+        
         logging.info('== Presenting step #{0}'.format(grad_steps))
         orig_time = time()
         
         loss = model.train_on_batch(x, y)
         
         logging.info('== Processed in {0:.2f}s by the network, training loss = {1}.'.format(time() - orig_time, loss))
+    
         # 每10步评估一下模型
         if (grad_steps) % 10 == 0:
             
             fm1, acc1, eer1 = eval_model(model,train_dataset, hparams.batch_size*hparams.triplet_per_batch, check_partial=True)
             logging.info('test training data EER = {0:.3f}, F-measure = {1:.3f}, Accuracy = {2:.3f} '.format(eer1, fm1, acc1))
             
-            with open('./train_acc_eer.txt', "a") as f:
+            with open(f'{best_model_dir}/train_acc_eer.txt', "a") as f:
                 f.write("{0},{1},{2},{3}\n".format(grad_steps, eer1, fm1, acc1))
 
         # 每200步，测试一下模型
@@ -125,7 +127,7 @@ def train(model,dataLoad,hparams):
             logging.info('== Testing model after batch #{0}'.format(grad_steps))
             logging.info('EER = {0:.3f}, F-measure = {1:.3f}, Accuracy = {2:.3f} '.format(eer, fm, acc))
             
-            with open('./test_log.txt', "a") as f:
+            with open(f'{best_model_dir}/test_log.txt', "a") as f:
                 f.write("{0},{1},{2},{3}\n".format(grad_steps, eer, fm, acc))
 
         # 每200步保存一下模型

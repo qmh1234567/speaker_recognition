@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-filename = './train_acc_eer.txt'
+filename = './../checkpoint/deepSpk/save/train_acc_eer.txt'
 
 steps = []
 eer = []
@@ -24,7 +24,7 @@ def draw_metrics(steps,eer,fm,acc):
     plt.show()
     plt.savefig("first1.png")
 
-def read_movingEER(steps,filename = './train_acc_eer.txt'):
+def read_movingEER(steps,filename =filename):
     with open(filename,'r') as f:
         for line in f.readlines():
             line = line.strip('\n')
@@ -35,7 +35,7 @@ def read_movingEER(steps,filename = './train_acc_eer.txt'):
                 mv_eer.append(round(float(line[1]),2))
     return mv_eer
 
-def read_metrics(filename='./train_acc_eer.txt'):
+def read_metrics(filename=filename):
     with open(filename,'r') as f:
         for line in f.readlines():
             line = line.strip('\n')
@@ -48,7 +48,7 @@ def read_metrics(filename='./train_acc_eer.txt'):
     return steps,eer,fm,acc
 
 
-def plot_acc(file='./train_acc_eer.txt'):
+def plot_acc(file=filename):
     step = []
     eer = []
     fm = []
@@ -80,9 +80,9 @@ def plot_acc(file='./train_acc_eer.txt'):
     
     
 if __name__ == "__main__":
-    steps,eer,fm,acc = read_metrics()
-    draw_metrics(steps,eer,fm,acc)
-    # plot_acc()    
+    # steps,eer,fm,acc = read_metrics()
+    # draw_metrics(steps,eer,fm,acc)
+    plot_acc()    
         # print(len(steps))
         # draw_metrics(steps,eer,fm,acc)
         # # steps.append(line[0])
