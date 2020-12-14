@@ -3,14 +3,23 @@ import keras.backend as K
 
 # ALPHA = 0.2  # used in FaceNet https://arxiv.org/pdf/1503.03832.pdf
 ALPHA = 0.1  # used in Deep Speaker.
+import numpy as np
+import tensorflow as tf
 
+# def batch_cosine_similarity(x1, x2):
+#     # https://en.wikipedia.org/wiki/Cosine_similarity
+#     # 1 = equal direction ; -1 = opposite direction
+#     dot = K.squeeze(K.batch_dot(x1, x2, axes=1), axis=1)
+#     # as values have have length 1, we don't need to divide by norm (as it is 1)
+#     return dot
 
-def batch_cosine_similarity(x1, x2):
-    # https://en.wikipedia.org/wiki/Cosine_similarity
-    # 1 = equal direction ; -1 = opposite direction
-    dot = K.squeeze(K.batch_dot(x1, x2, axes=1), axis=1)
-    # as values have have length 1, we don't need to divide by norm (as it is 1)
-    return dot
+# # 计算余弦距离 
+def batch_cosine_similarity(x1,x2):
+    dot1 = K.batch_dot(x1, x2, axes=1)  # a*b
+    dot2 = K.batch_dot(x1, x1, axes=1) # a*a
+    dot3 = K.batch_dot(x2, x2, axes=1) # b*b
+    max_ = K.maximum(K.sqrt(dot2 * dot3), K.epsilon()) # sqrt(a*a * b*b) K.epsilon() 是为了防止为0
+    return dot1 / max_  #  a*b/sqrt(a*a * b*b)
 
 
 def deep_speaker_loss(y_true, y_pred, alpha=ALPHA):
@@ -37,6 +46,7 @@ def deep_speaker_loss(y_true, y_pred, alpha=ALPHA):
     # Then sap = san = 1. and loss = max(alpha,0) = alpha.
     # On the contrary if anchor = positive = [1] and negative = [-1].
     # Then sap = 1 and san = -1. loss = max(-1-1+0.1,0) = max(-1.9, 0) = 0.
+
     sap = batch_cosine_similarity(anchor, positive_ex)
     san = batch_cosine_similarity(anchor, negative_ex)
     loss = K.maximum(san - sap + alpha, 0.0)

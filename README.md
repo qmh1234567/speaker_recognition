@@ -1,9 +1,9 @@
 # Spaker_recognition
 
 #### 运行环境说明：
-  系统：ubuntu
-  IDE: vscode
-  gpu: GeForce RTX 2070
+  - 系统：ubuntu
+  - IDE: vscode
+  - gpu: GeForce RTX 2070
 
 #### TIMIT数据集上的声纹识别实验
 
@@ -167,7 +167,7 @@ score=0.945
     | fine_tune.py | 微调的主脚本 | 改动了训练的代码，小改 |
     | random_batch.py | 生成批次的脚本 | 大改，修改了数据加载方式 |
     | test_model.py | 评估模型的脚本 | 小改，修改了余弦函数的计算|
-    | triplet_loss.py | 三元组损失计算脚本 | 一致 
+    | triplet_loss.py | 三元组损失计算脚本 | 小改，修改了余弦函数的计算
 
 
  ##### 自己的踩坑记录
@@ -198,8 +198,7 @@ score=0.945
      - 修改后得到的结果如下图：
      ![1](/imgs/successedResult.png)
 
-1. 使用其他模型，如SEResNet时，出现ACC非常低的情况，除了acc其他指标也不正常。效果如下：
-   
+2. 使用其他模型，如SEResNet时，出现ACC非常低的情况，除了acc其他指标也不正常。
 
    - 这个错误我也排查了一会，首先数据集是不会有问题的，对于所有模型都是一样的。其次模型的加载也没有问题。唯一的问题也在评估模型的函数。我看了一下基本都是通用的，没有针对具体模型的函数。同时我也打印了一下y_pred,发现其他模型的y_pred非常大，数值为好几百,而deepSpk的y_pred在0到1之间。故猜想可能是余弦距离的计算函数出了问题，于是换成了常用的余弦距离计算函数，然后结果就恢复正常了。
     
@@ -218,4 +217,18 @@ score=0.945
             s1.append(sm)  
         return np.array(s1)
     ``` 
-  
+  3.发现其他模型使用triplet loss微调后，效果没有改进。如这是我自己定义的AttDCNN模型使用微调，跑了8万多步，获得的一个最好模型，但该模型在测试集上eer的值不降反升。从原来的7.01%变成了10.01%.
+
+  - 这个问题的原因还在排查中。
+     
+     - 首先检查了一下triple_loss脚本，发现里面的计算余弦距离的函数，我不太理解。于是换成了自己能够理解的函数。 改动之后发现训练loss显著降低，从原来的十几、二十几降低到1以下。
+        ```python
+        # # 计算余弦距离 
+        def batch_cosine_similarity(x1,x2):
+            dot1 = K.batch_dot(x1, x2, axes=1)  # a*b
+            dot2 = K.batch_dot(x1, x1, axes=1) # a*a
+            dot3 = K.batch_dot(x2, x2, axes=1) # b*b
+            max_ = K.maximum(K.sqrt(dot2 * dot3), K.epsilon()) # sqrt(a*a * b*b) K.epsilon() 是为了防止为0
+            return dot1 / max_  #  a*b/sqrt(a*a * b*b)
+        ```
+     - 其次检查了梯度下降方法和学习率，发现用的是adam,学习率默认是0.01，猜测可能是梯度下降策略不对或者学习率太大，于是改成了梯度下降，学习率初始值是0.001。 修改后发现成功降低了eer，由原来的7.0%降低到6.9%。

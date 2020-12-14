@@ -45,7 +45,7 @@ sess = tf.compat.v1.Session(config=config)
 MODEL_DIR = './checkpoint/' # 模型保存目录
 LEARN_RATE = 0.01 # 学习率
 BATCH_SIZE = 32
-EPOCHS = 300# 训练轮次
+EPOCHS = 300 # 训练轮次
 
 # 选择模型
 def createModel(modelName,input_shape=(299,40,1)):
@@ -127,8 +127,8 @@ def test(model,dataLoad,util,hparams):
     
     # load weights
     model_dir = MODEL_DIR + hparams.model_name
-    model.load_weights(f'{model_dir}/best.h5', by_name='True')
-    # model.load_weights(f'{model_dir}/save/best_model0_0.04939.h5', by_name='True')
+    model.load_weights(f'{model_dir}/best.h5', by_name='True') 
+    # model.load_weights(f'{model_dir}/save/best_model.h5', by_name='True')
         
     # load all data
     print("loading data...") 

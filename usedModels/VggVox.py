@@ -45,6 +45,45 @@ class VggVox():
         x = Activation('relu',name=f'{name}_relu')(x)
         
         return x
+
+   # 残差块
+    def bottle_neck(self,x,outdim,name,strides=(1,1)):
+        
+        identity = Conv2D(outdim,kernel_size=(1,1),strides=strides,padding='same',name=f'{name}_identity',
+        kernel_regularizer=regularizers.l2(l=self.WEIGHT_DECAY))(x)
+        
+        identity = BatchNormalization(name=f'{name}_bn0')(identity)
+      
+
+        # conv 1x1
+        x = Conv2D(outdim//4,kernel_size=(1,1),strides=(1,1),name=f'{name}_conv1',
+            kernel_regularizer=regularizers.l2(l=self.WEIGHT_DECAY))(x)
+        
+        x = BatchNormalization(name=f'{name}_bn1')(x)
+        
+        x = Activation('relu',name=f'{name}_relu1')(x)
+
+        # conv 3x3
+        x = Conv2D(outdim//4,kernel_size=(3,3),strides=strides,padding='same',name=f'{name}_conv2',
+            kernel_regularizer=regularizers.l2(l=self.WEIGHT_DECAY))(x)
+        
+        x = BatchNormalization(name=f'{name}_bn2')(x)
+        
+        x = Activation('relu',name=f'{name}_relu2')(x)
+
+        # conv 1x1
+        x = Conv2D(outdim,kernel_size=(1,1),strides=(1,1),name=f'{name}_conv3',
+        kernel_regularizer= regularizers.l2(l=self.WEIGHT_DECAY))(x)
+        
+        x = BatchNormalization(name=f'{name}_bn3')(x)
+
+        x = Add(name=f'{name}_scut')([identity,x])
+        
+        x = Activation('relu',name=f'{name}_relu3')(x)
+        
+        return x
+    
+
     
     def res_34(self,input_shape):
         
@@ -60,19 +99,23 @@ class VggVox():
         x = MaxPool2D((3,3),strides=(2,2),padding='same',name='pool1')(x)
         
         for i in range(1,4):
-            x = self.basic_block(x,64,(1,1),name=f'block{i}')
-            
+            # x = self.basic_block(x,64,(1,1),name=f'block{i}')
+            x = self.bottle_neck(x,256,f'block{i}')
+
         for i in range(4,8):
             stride = (2,2) if i==4 else (1,1)
-            x = self.basic_block(x,128,stride,name=f'block{i}')
+            # x = self.basic_block(x,128,stride,name=f'block{i}')
+            x = self.bottle_neck(x,512,f'block{i}',stride)
     
-        for i in range(8,14):
-            stride = (2,2) if i==8 else (1,1)
-            x = self.basic_block(x,256,stride,name=f'block{i}')
+        # for i in range(8,14):
+        #     stride = (2,2) if i==8 else (1,1)
+        #     # x = self.basic_block(x,256,stride,name=f'block{i}')
+        #     x = self.bottle_neck(x,1024,f'block{i}',stride)
 
-        for i in range(14,17):
-            stride = (2,2) if i==14 else (1,1)
-            x = self.basic_block(x,512,stride,name=f'block{i}')
+        # for i in range(14,17):
+        #     stride = (2,2) if i==14 else (1,1)
+        #     # x = self.basic_block(x,512,stride,name=f'block{i}')
+        #     x = self.bottle_neck(x,2048,f'block{i}',stride)
         
         # avgpool
         x = Lambda(lambda y: K.mean(y,axis=[1,2]),name='avgpool')(x)

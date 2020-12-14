@@ -77,7 +77,7 @@ def createModel(modelName,input_shape=(299,40,1)):
 
 
 def train(model,dataLoad,hparams):
-    Num_Iter = 10001
+    Num_Iter = 20001
     current_iter = 0
     grad_steps = 0
     lasteer = 10

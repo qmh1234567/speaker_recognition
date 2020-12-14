@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-filename = './../checkpoint/deepSpk/save/train_acc_eer.txt'
+filename = './../checkpoint/AttDCNN/save/train_acc_eer.txt'
 
 steps = []
 eer = []

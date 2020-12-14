@@ -119,6 +119,8 @@ def batch_cosine_similarity(x1,x2):
     for i in range(0,x1.shape[0]):
         sm = np.dot(x1[i], x2[i])/(np.linalg.norm(x1[i])*np.linalg.norm(x2[i]))# 计算余弦距离
         s1.append(sm)  
+    # 方法3
+    # dot = K.squeeze(K.batch_dot(x1, x2, axes=1), axis=1)
     return np.array(s1)
     
 
