@@ -78,23 +78,6 @@ class MiniBatch:
         self.dataset_batch = pd.DataFrame(pd.concat([anchor_batch,positive_batch,negative_batch],axis=0))
         # self.dataset_batch.to_csv("test1.csv",index=0)
         self.num_triplets = num_triplets
-    
-    # X, Y = [], []
-    # bar = Bar('loading data', max=len(labels),fill='#', suffix='%(percent)d%%')
-    # for index, pk in enumerate(path):
-    #     bar.next()
-    #     try:
-    #         with open(pk, "rb") as f:
-    #             load_dict = pickle.load(f)
-    #             x = load_dict["LogMel_Features"]
-    #             x = x[:, :, np.newaxis]
-    #             X.append(x)
-    #             Y.append(labels_to_id[labels[index]])
-    #     except Exception as e:
-    #         print(e)
-    # X = np.array(X)
-    # Y = np.eye(num_class)[Y]
-    # bar.finish()
 
     def to_inputs(self):
         new_x = []
@@ -120,6 +103,8 @@ def stochastic_mini_batch(dataset, batch_size=BATCH_SIZE,unique_speakers=None):
     mini_batch = MiniBatch(dataset, batch_size,unique_speakers)
     return mini_batch
 
+
+
 def main():
     dataset_dir = "/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train"
     dataset = data_catalog(dataset_dir)
@@ -132,4 +117,5 @@ def main():
 
 
 if __name__ == "__main__":
+    
     main()

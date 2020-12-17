@@ -70,7 +70,7 @@ class DataLoad():
         speaker_pickle_files_list = [pickle for pickle in glob.iglob(train_pk_dir + "/*.pickle")]
         
         audio_labels = [os.path.basename(pickle).split("_")[0] for pickle in speaker_pickle_files_list]
-             
+        
         train_paths, val_paths, train_labels, val_labels = train_test_split(speaker_pickle_files_list, audio_labels,
                                                                                 stratify=audio_labels, test_size=split_ratio, random_state=42)
         train_dataset = (train_paths, train_labels)
@@ -99,65 +99,65 @@ class DataLoad():
             val_paths, val_labels, train_paths, train_labels = self.split_perspeaker_audios(
                     audio_paths, audio_labels, split_ratio)
         else:
-            if not os.path.exists(self.ANNONATION_FILE):
+            # if not os.path.exists(self.ANNONATION_FILE):
 
-                dict_count = Counter(audio_labels)
-                
-                cut_index = 0
-                
-                # remove repeat and rank in order
-                new_audio_labels = list(set(audio_labels))
-                
-                new_audio_labels.sort(key=audio_labels.index)
-                
-                # 从测试集中选出ENROLL_NUMBER个人作为注册说话人，[:cut_index]句话
-                for index, speaker in enumerate(new_audio_labels):
-                    if index == self.ENROLL_NUMBER:
-                        break
-                    else:
-                        cut_index += dict_count[speaker]
-                        
-                # 用注册说话人构建测试数据集
-                val_paths, val_labels, train_paths, train_labels = self.split_perspeaker_audios(audio_paths[:cut_index], audio_labels[:cut_index], split_ratio)
-                ismember = np.ones(len(train_labels)).tolist()
-                
-                # 剩下的就是非说话人 non-speaker
-                train_paths.extend(audio_paths[cut_index:])
-                train_labels.extend(audio_labels[cut_index:])
-                
-                # is member
-                ismember.extend(np.zeros(len(audio_labels[cut_index:])).tolist())
-                
-                # shuffle
-                train_paths,train_labels,ismember = self.shuffle_data(train_paths,train_labels,ismember)
-                
-                # create annonation.csv
-                # 测试集
-                data_dict = {
-                    'FilePath': train_paths,
-                    'SpeakerID': train_labels,
-                    'Ismember': ismember,
-                }
-                data = pd.DataFrame(data_dict)
-                data.to_csv(self.ANNONATION_FILE, index=0)
-                print(f"wirte to {self.ANNONATION_FILE} succeed")
-                # 注册数据集
-                data_dict = {
-                    'FilePath': val_paths,
-                    'SpeakerID': val_labels
-                }
-                data = pd.DataFrame(data_dict)
-                data.to_csv(self.ENROLL_FILE, index=0)
-                print(f"wirte to {self.ENROLL_FILE} succeed")
-            else:
-                data = pd.DataFrame(pd.read_csv(self.ANNONATION_FILE))
-                train_paths = data['FilePath'].tolist()
-                train_labels = data['SpeakerID'].tolist()
-                ismember = data['Ismember'].tolist()
+            dict_count = Counter(audio_labels)
+            
+            cut_index = 0
+            
+            # remove repeat and rank in order
+            new_audio_labels = list(set(audio_labels))
+            
+            new_audio_labels.sort(key=audio_labels.index)
+            
+            # 从测试集中选出ENROLL_NUMBER个人作为注册说话人，[:cut_index]句话
+            for index, speaker in enumerate(new_audio_labels):
+                if index == self.ENROLL_NUMBER:
+                    break
+                else:
+                    cut_index += dict_count[speaker]
+                    
+            # 用注册说话人构建测试数据集
+            val_paths, val_labels, train_paths, train_labels = self.split_perspeaker_audios(audio_paths[:cut_index], audio_labels[:cut_index], split_ratio)
+            ismember = np.ones(len(train_labels)).tolist()
+            
+            # 剩下的就是非说话人 non-speaker
+            train_paths.extend(audio_paths[cut_index:])
+            train_labels.extend(audio_labels[cut_index:])
+            
+            # is member
+            ismember.extend(np.zeros(len(audio_labels[cut_index:])).tolist())
+            
+            # shuffle
+            train_paths,train_labels,ismember = self.shuffle_data(train_paths,train_labels,ismember)
+            
+            # create annonation.csv
+            # 测试集
+            data_dict = {
+                'FilePath': train_paths,
+                'SpeakerID': train_labels,
+                'Ismember': ismember,
+            }
+            data = pd.DataFrame(data_dict)
+            data.to_csv(self.ANNONATION_FILE, index=0)
+            print(f"wirte to {self.ANNONATION_FILE} succeed")
+            # 注册数据集
+            data_dict = {
+                'FilePath': val_paths,
+                'SpeakerID': val_labels
+            }
+            data = pd.DataFrame(data_dict)
+            data.to_csv(self.ENROLL_FILE, index=0)
+            print(f"wirte to {self.ENROLL_FILE} succeed")
+            # else:
+            #     data = pd.DataFrame(pd.read_csv(self.ANNONATION_FILE))
+            #     train_paths = data['FilePath'].tolist()
+            #     train_labels = data['SpeakerID'].tolist()
+            #     ismember = data['Ismember'].tolist()
 
-                data = pd.read_csv(self.ENROLL_FILE)
-                val_paths = data['FilePath'].tolist()
-                val_labels = data['SpeakerID'].tolist()
+            #     data = pd.read_csv(self.ENROLL_FILE)
+            #     val_paths = data['FilePath'].tolist()
+            #     val_labels = data['SpeakerID'].tolist()
 
         train_dataset = (train_paths, train_labels)
         val_dataset = (val_paths, val_labels)

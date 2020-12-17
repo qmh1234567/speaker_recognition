@@ -35,6 +35,8 @@ import utils.DataLoad as DataLoad
 import utils.Util as Util
 import utils.LossHistory as LossHistory
 
+import finetune.eval_metrics as eval_metrics
+
 # OPTIONAL: control usage of GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 config = tf.compat.v1.ConfigProto()
@@ -70,7 +72,9 @@ def addSoftmax(model,nclass):
 
 def train(model,dataLoad,hparams):
     
-    model_dir = MODEL_DIR + hparams.model_name
+    dataSetName = hparams.train_pk_dir.split("/")[-3].split("_")[0].lower()
+    
+    model_dir = os.path.join(MODEL_DIR + hparams.model_name,dataSetName)
     
     if not os.path.exists(model_dir):
             os.mkdir(model_dir)
@@ -108,7 +112,7 @@ def train(model,dataLoad,hparams):
                                 monitor='val_loss', save_best_only=True, mode='min'),
                             ReduceLROnPlateau(monitor='val_loss', factor=0.1,
                                 patience=50, mode='min'),
-                            # EarlyStopping(monitor='val_loss', patience=10),
+                            EarlyStopping(monitor='val_loss', patience=10),
                             history,
     ])
     
@@ -126,9 +130,11 @@ def test(model,dataLoad,util,hparams):
     labels_to_id = dataLoad.Map_label_to_dict(labels=enroll_dataset[1])
     
     # load weights
-    model_dir = MODEL_DIR + hparams.model_name
-    model.load_weights(f'{model_dir}/best.h5', by_name='True') 
-    # model.load_weights(f'{model_dir}/save/best_model.h5', by_name='True')
+    dataSetName = hparams.train_pk_dir.split("/")[-3].split("_")[0].lower()
+    model_dir = os.path.join(MODEL_DIR + hparams.model_name,dataSetName)
+    
+    # model.load_weights(f'{model_dir}/best.h5', by_name='True') 
+    model.load_weights(f'{model_dir}/save/best_model600_0.02758.h5', by_name='True')
         
     # load all data
     print("loading data...") 
@@ -155,14 +161,25 @@ def test(model,dataLoad,util,hparams):
         df = pd.read_csv(dataLoad.ANNONATION_FILE)
 
         ismember_true = list(map(int, df['Ismember']))
-        # np.save('./npys/perfect_noELU.npy',distances)
-        ismember_pre = util.speaker_verification(distances, ismember_true)
         
-        # compute result
-        result = util.compute_result(ismember_pre, ismember_true)
+        score_index = distances.argmax(axis=0)
         
-        score = sum(result)/len(result)
-        print(f"score={score}")
+        # 对每列求最大值，得到每句话的最可能说话人
+        y_pred = distances.max(axis=0)
+        
+        
+        fm, acc, eer = eval_metrics.evaluate(y_pred, ismember_true)
+        
+        print(f'eer={eer}\t fm={fm} \t acc={acc}\t')
+        
+        # # np.save('./npys/perfect_noELU.npy',distances)
+        # ismember_pre = util.speaker_verification(distances, ismember_true)
+        
+        # # compute result
+        # result = util.compute_result(ismember_pre, ismember_true)
+        
+        # score = sum(result)/len(result)
+        # print(f"score={score}")
 
 def main(hparams):    
         
@@ -193,9 +210,9 @@ if __name__ == "__main__":
     
     parser.add_argument("--target",type=str,required=True,help="SV or SI ,which is used in test stage",choices=["SV","SI"])
     
-    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train")
+    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_M/train-clean-100/") # 更换数据集时要修改
     
-    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test")
+    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_M/test-clean/")     
     
     args = parser.parse_args()
     

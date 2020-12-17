@@ -25,8 +25,7 @@ import usedModels.Att_DCNN as Att_DCNN
 
 BATCH_SIZE = 32
 TRIPLET_PER_BATCH = 3  # 选3个人
-TEST_DIR = "/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test" # 测试集目录
-TEST_NEGATIVE_No = 99  # 负语音样本的人数  99好像跑不下来
+TEST_NEGATIVE_No = 99  # 负语音样本的人数  
 
 num_neg = TEST_NEGATIVE_No
 
@@ -38,8 +37,8 @@ def create_test_data(dataset,check_partial):
     np.random.shuffle(unique_speakers)
     num_triplets = len(unique_speakers)
     if check_partial:
-        num_neg= TEST_NEGATIVE_No-int((TEST_NEGATIVE_No+1)/2)
-        num_triplets = min(num_triplets,30)
+        num_neg= 49
+        num_triplets = min(num_triplets,50)
     test_batch = None
     for i in range(num_triplets):
          # 构建anchor
@@ -68,6 +67,7 @@ def create_test_data(dataset,check_partial):
             test_batch = pd.concat([test_batch, negative_df], axis=0)
             
     # test_batch.to_csv("test_dataset.csv")
+    # print("save to csv success")
     return to_inputs(test_batch,num_triplets)
 
 # 构建输入和输出
@@ -122,14 +122,12 @@ def batch_cosine_similarity(x1,x2):
     # 方法3
     # dot = K.squeeze(K.batch_dot(x1, x2, axes=1), axis=1)
     return np.array(s1)
-    
+
 
 # 评估模型
 def eval_model(model,dataset,train_batch_size=BATCH_SIZE*TRIPLET_PER_BATCH,check_partial=False):
+    
     x,y_true = create_test_data(dataset,check_partial)
-    batch_size = x.shape[0]
-    b = x[0]
-    input_shape = (b.shape[0],b.shape[1],b.shape[2])
     
     test_epoch = int(len(y_true)/train_batch_size)  # 测试轮数  15
     

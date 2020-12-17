@@ -1,24 +1,17 @@
 # Spaker_recognition
 
-#### 运行环境说明：
+### 运行环境说明：
   - 系统：ubuntu
   - IDE: vscode
   - gpu: GeForce RTX 2070
 
-#### TIMIT数据集上的声纹识别实验
-
-> TIMIT数据是收费的，但是国外有个大学网站提供了免费下载地:
-[TIMIT数据下载地址](http://academictorrents.com/details/34e2b78745138186976cbc27939b1b34d18bd5b3/tech&hit=1&filelist=1)
-文件大小440M，是完整的数据库。
-- 由于默认的目录名字和文件后缀都是大写的，而本项目只支持小写，可参考[shell递归遍历目录，修改文件名或者目录名](https://blog.csdn.net/qq_28228605/article/details/109963278)，将它们改为小写。
-
-#### 1. 安装所需依赖包
+###  安装所需依赖包
 
 ```bash
 $ pip install -r requirements.txt
 ```
 
-#### 2. 项目目录说明：
+###  项目目录说明：
   |  目录名   | 说明  |
 |  ----  | ----  |
 | dataset  | 暂无 |
@@ -29,7 +22,16 @@ $ pip install -r requirements.txt
 | run.py | 预训练与测试脚本 |
 
 
-#### 3. 运行utils目录下的预处理文件`preprocess.py`
+### TIMIT数据集上的声纹识别实验
+
+> TIMIT数据是收费的，但是国外有个大学网站提供了免费下载地:
+[TIMIT数据下载地址](http://academictorrents.com/details/34e2b78745138186976cbc27939b1b34d18bd5b3/tech&hit=1&filelist=1)
+文件大小440M，是完整的数据库。
+
+#### 更改数据集的音频格式
+- 由于默认的目录名字和文件后缀都是大写的，而本项目只支持小写，可参考[shell递归遍历目录，修改文件名或者目录名](https://blog.csdn.net/qq_28228605/article/details/109963278)，将它们改为小写。
+
+#### 1. 运行utils目录下的预处理文件`preprocess.py`
  - 运行命令：
    - `python preprocess.py --in_dir=TIMIT/train/ --pk_dir=/TIMIT_OUTPUT/train/ --data_type=mit`
   - 参数说明：
@@ -110,7 +112,7 @@ $ pip install -r requirements.txt
 - 语谱图
   ![1](/imgs/spectrum.png)
 
-#### 4. 运行预训练脚本`run.py`
+#### 2. 运行预训练脚本`run.py`
   - 运行命令：`python run.py --stage="test" --model_name="deepSpk" --target="SV"` 
   - 参数说明：
     - --stage 表示实验阶段，train是训练阶段，test是测试阶段
@@ -118,11 +120,11 @@ $ pip install -r requirements.txt
     - --target 表示实验目标，SV是说话人确认，SI是说话人辨认。该参数仅在test阶段起作用。
 
 
-#### 5. usedModels目录下的模型介绍
+#### 3. usedModels目录下的模型介绍
 - DeepSpeaker模型：[论文地址](https://arxiv.org/abs/1705.02304)
 - Rest34 和 Rest50模型： [论文地址](https://arxiv.org/abs/1806.05622)
   
-#### 6.各个模型的实验结果
+#### 4.各个模型的实验结果
 ##### Deep Speaker模型实验结果
 - loss曲线和acc曲线：
 ![1](/imgs/dpk_acc_loss.png)
@@ -232,3 +234,50 @@ score=0.945
             return dot1 / max_  #  a*b/sqrt(a*a * b*b)
         ```
      - 其次检查了梯度下降方法和学习率，发现用的是adam,学习率默认是0.01，猜测可能是梯度下降策略不对或者学习率太大，于是改成了梯度下降，学习率初始值是0.001。 修改后发现成功降低了eer，由原来的7.0%降低到6.9%。
+
+### LibriSpeech数据集上的声纹识别实验
+
+#### 转化数据集的音频格式.
+- 复制`utils\convert_flac_2_wav_sox.sh`文件到数据集所在目录，数据集的名字是LibriSpeech,数据集目录结构如下：
+   ```bash
+      [15:36:16] qmh@dsp-qmh ~/Projects/Datasets/LibriSpeech 
+      ❯❯❯ ls
+      BOOKS.TXT     dev-clean    README.TXT    test-clean
+      CHAPTERS.TXT  LICENSE.TXT  SPEAKERS.TXT  train-clean-100
+       [15:36:56] qmh@dsp-qmh ~/Projects/Datasets/LibriSpeech/test-clean 
+      ❯❯❯ ls
+      1089  1284  2094  2830  3729  4970  5639  6829  7176  8455
+      1188  1320  2300  2961  4077  4992  5683  6930  7729  8463
+      121   1580  237   3570  4446  5105  61    7021  8224  8555
+      1221  1995  260   3575  4507  5142  672   7127  8230  908
+      [15:36:57] qmh@dsp-qmh ~/Projects/Datasets/LibriSpeech/test-clean 
+      ❯❯❯ cd 1089      
+      [15:37:02] qmh@dsp-qmh ~/Projects/Datasets/LibriSpeech/test-clean/1089 
+      ❯❯❯ ls
+      134686  134691
+      [15:37:03] qmh@dsp-qmh ~/Projects/Datasets/LibriSpeech/test-clean/1089 
+      ❯❯❯ cd 134686 
+      [15:37:09] qmh@dsp-qmh ~/Projects/Datasets/LibriSpeech/test-clean/1089/134686 
+      ❯❯❯ ls
+      1089-134686-0000.flac  1089-134686-0013.flac  1089-134686-0026.flac
+      ....
+   ```
+#### 1. 运行utils目录下的预处理文件`preprocess.py`
+
+- 运行命令：
+    ```bash
+      python preprocess.py --in_dir=/home/qmh/Projects/Datasets/LibriSpeech/train-clean-100/ --pk_dir=/home/qmh/Projects/Datasets/LibriSpeech_M/train-clean-100/ --data_type=libri
+      python preprocess.py --in_dir=/home/qmh/Projects/Datasets/LibriSpeech/test-clean/ --pk_dir=/home/qmh/Projects/Datasets/LibriSpeech_M/test-clean/ --data_type=libri
+    ```
+- 参数说明：
+  - 见前面第一个实验
+#### 2.各个模型的实验结果
+
+##### 提出的SE-ResNet模型实验结果
+
+- 运行命令
+  
+- loss曲线和acc曲线
+- SI实验
+- SV实验
+

@@ -12,7 +12,6 @@ import vad_ex
 import webrtcvad
 from progress.bar import Bar
 import pandas as pd
-import constants as c
 import librosa
 import librosa.display
 import matplotlib.pyplot as plt
@@ -26,7 +25,7 @@ class Preprocess():
     def preprocess_data(self):
         if self.hparams.data_type == "libri":
             path_list = [x for x in glob.iglob(
-                self.hparams.in_dir.rstrip("/")+"/wav/*/*/*.wav")]
+                self.hparams.in_dir.rstrip("/")+"/*/*/*.wav")]
         elif self.hparams.data_type == "vox1":
             path_list = [x for x in glob.iglob(
                 self.hparams.in_dir.rstrip("/")+"/wav/*/*/*.wav")]
@@ -52,7 +51,6 @@ class Preprocess():
                 exit()
             # padding 音频裁减
             wav_arr = self.cut_audio(wav_arr,sample_rate)
-            
             # 提取特征并保存
             self.create_pickle(path, wav_arr, sample_rate)
         bar.finish()
@@ -117,9 +115,8 @@ class Preprocess():
                     pickle_f_name = data_id.replace("m4a", "pickle")
 
             elif self.hparams.data_type == "libri":
-                data_id = "_".join(path.split("/")[-3:])
-                save_dict["SpkId"] = path.split("/")[-3]
-                save_dict["WavId"] = path.split("/")[-2]
+                # data_id = "_".join(path.split("/")[-3:])
+                data_id = path.split("/")[-1].replace("-", "_")  # 音频格式 5514_19192_0011.wav
                 pickle_f_name = data_id.replace("wav", "pickle")
             
             elif self.hparams.data_type == 'mit':
@@ -174,9 +171,12 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    # in_dir = ~/wav
-    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/train/ --pk_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train/ --data_type=mit
-    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/test/ --pk_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test/ --data_type=mit
+    # timit
+    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/train/ --pk_dir=/home/qmh/Projects/Datasets/TIMIT_M/train/ --data_type=mit
+    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/test/ --pk_dir=/home/qmh/Projects/Datasets/TIMIT_M/test/ --data_type=mit
+    # libri    
+    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/LibriSpeech/train-clean-100/ --pk_dir=/home/qmh/Projects/Datasets/LibriSpeech_M/train-clean-100/ --data_type=libri
+    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/LibriSpeech/test-clean/ --pk_dir=/home/qmh/Projects/Datasets/LibriSpeech_M/test-clean/ --data_type=libri
     parser.add_argument("--in_dir", type=str, required=True,
                         help="input audio data dir")
     parser.add_argument("--pk_dir", type=str, required=True,

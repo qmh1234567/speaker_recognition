@@ -1,6 +1,6 @@
 #!/bin/bash
 
-folder=Library_speech_100
+folder=LibrarySpeech # 文件夹名字
 
 for file in $(find "$folder" -type f -iname "*.flac")
 do

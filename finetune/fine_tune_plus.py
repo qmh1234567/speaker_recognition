@@ -25,8 +25,6 @@ from keras import optimizers
 import glob
 import pickle
 import argparse
-from test_model import eval_model
-
 import sys
 sys.path.append("../") 
 import usedModels.Deep_Speaker as Deep_Speaker
@@ -42,6 +40,9 @@ from triplet_loss import deep_speaker_loss
 import logging
 import pickle
 from time import time
+import select_batch
+import eval_metrics
+from test_model import create_test_data,eval_model
 
 # OPTIONAL: control usage of GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -51,12 +52,13 @@ config.gpu_options.per_process_gpu_memory_fraction = 0.7
 sess = tf.compat.v1.Session(config=config)
 
 MODEL_DIR = './../checkpoint/' # 模型保存目录
-LEARN_RATE = 0.0001 # 学习率 libri数据集的学习率修改成0.001试试 0.01
+LEARN_RATE = 0.001 # 学习率 libri数据集的学习率修改成0.001试试 0.01
 
 
-
+EPOCHS = 300
 TEST_PER_EPOCHS = 200   # 多少轮测试一下
 SAVE_PER_EPOCHS = 200   # 多少轮保存一下
+ANNONATION_FILE = './../dataset/annonation.csv'
 
 # 设置log输出到控制台
 logger = logging.getLogger()   
@@ -75,12 +77,47 @@ def createModel(modelName,input_shape=(299,40,1)):
     # print(model.summary())
     return model
 
+# 数据生成器
+def data_producer(dataset):
+    unique_speakers = dataset['speaker_id'].unique()
+    labels = dataset['speaker_id'].tolist()
+    files = dataset['filename'].tolist()
+    
+    spk_utt_dict = {}  # key=speaker_id  value: 当前说话人的所有音频
+    for i in range(len(unique_speakers)):
+        spk_utt_dict[unique_speakers[i]] = []
 
+    for i in range(len(labels)):
+        spk_utt_dict[labels[i]].append(files[i])
+        
+    select_batch.create_data_producer(unique_speakers,spk_utt_dict)
+
+
+        
+# 训练集生成    
+def train_generator(dataset,model,batch_size):
+    # 数据生成器
+    data_producer(dataset)
+    # num_class = len(dataset['speaker_id'].unique())
+    while True:
+        X,_ = select_batch.best_batch(model,batch_size)
+        Y = np.random.uniform(size=(X.shape[0], 1))
+        yield (X,Y)
+        
+
+# 验证集生成
+def test_generator(dataset):
+    while True:
+        X,Y = create_test_data(dataset,False)
+        return (X,Y)
+
+    
 def train(model,dataLoad,hparams):
     Num_Iter = 20001
     current_iter = 0
     grad_steps = 0
     lasteer = 10
+    eer = 1
     
     dataSetName = hparams.train_pk_dir.split("/")[-3].split("_")[0].lower()
     
@@ -98,14 +135,35 @@ def train(model,dataLoad,hparams):
     
     sgd = optimizers.SGD(lr=LEARN_RATE,momentum=0.9) #TIMIT libri-seresnet
     model.compile(optimizer=sgd, loss=deep_speaker_loss)
-     
+    
+    
+    # # 训练
+    # model.fit(train_generator(train_dataset,model,hparams.batch_size),
+    #                     steps_per_epoch=200,epochs=EPOCHS,shuffle=False,
+    #                     validation_data=test_generator(test_dataset),
+    #                     validation_steps=50,
+    #                     callbacks=[
+    #                         ModelCheckpoint(f'{model_dir}/bestft.h5',
+    #                             monitor='val_loss', save_best_only=True, mode='min'),
+    #                         ReduceLROnPlateau(monitor='val_loss', factor=0.1,
+    #                             patience=50, mode='min'),
+    #                         EarlyStopping(monitor='val_loss', patience=10),
+    #                         # history,
+    # ])
+    
+    # 数据生成器
+    data_producer(train_dataset)
+    
+    dataLoad = DataLoad.DataLoad()
+    
+    df = pd.read_csv(ANNONATION_FILE)
     
     while current_iter <Num_Iter:
         current_iter += 1
         
-        batch= stochastic_mini_batch(train_dataset,hparams.batch_size)
-        x,y = batch.to_inputs()  #(96,299,40,1)
-        # y = np.random.uniform(size=(x.shape[0],1))  # (96)
+        x,_ = select_batch.best_batch(model,hparams.batch_size)
+        # y = np.random.uniform(size=(x.shape[0], 1))
+        y = np.random.uniform(size=(x.shape[0], 1))
         
         logging.info('== Presenting step #{0}'.format(grad_steps))
         orig_time = time()
@@ -126,7 +184,7 @@ def train(model,dataLoad,hparams):
         # 每200步，测试一下模型
         if (grad_steps ) % TEST_PER_EPOCHS == 0 :
             
-            fm, acc, eer = eval_model(model,train_dataset,hparams.batch_size*hparams.triplet_per_batch,check_partial=False) # 修改
+            fm, acc, eer = eval_model(model,test_dataset,hparams.batch_size*hparams.triplet_per_batch,check_partial=False) # 修改
             
             logging.info('== Testing model after batch #{0}'.format(grad_steps))
             logging.info('EER = {0:.3f}, F-measure = {1:.3f}, Accuracy = {2:.3f} '.format(eer, fm, acc))
