@@ -6,21 +6,44 @@ import pandas as pd
 import glob
 import os
 import pickle
+from sklearn.model_selection import train_test_split
 
 NUM_FRAMES = 300
 BATCH_SIZE = 32
 
 
-def data_catalog(dataset_dir, pattern='*.pickle'):
-    dataSet = pd.DataFrame()
+def split_dataset(dataset_dir,need_split=True,split_ratio=0.2):
+    
+    audio_paths = [pickle for pickle in glob.iglob(dataset_dir +"/*.pickle")]
+    
+    if need_split:
 
+        audio_paths.sort()
+        
+        audio_labels = [os.path.basename(pickle).split("_")[0] for pickle in audio_paths]
+
+        train_paths, val_paths, _, _ = train_test_split(audio_paths, audio_labels,
+                                                            stratify=audio_labels, test_size=split_ratio, random_state=42)
+        return train_paths,val_paths
+    else:
+        
+        return audio_paths
+
+
+
+def data_catalog(dataset_dir):
+    
+    dataSet = pd.DataFrame()
+    
     audio_paths = [pickle for pickle in glob.iglob(dataset_dir +"/*.pickle")]
 
     dataSet['filename'] = [pickle for pickle in audio_paths]  # normalize windows paths
+    
 
     dataSet['speaker_id'] = [os.path.basename(pickle).split("_")[0] for pickle in audio_paths]
 
     num_speakers = len(dataSet['speaker_id'].unique())
+    
 
     # print('Found {} files with {} different speakers.'.format(str(len(dataSet)).zfill(7), str(num_speakers).zfill(5)))
     # print(libri.head(10))
@@ -28,6 +51,7 @@ def data_catalog(dataset_dir, pattern='*.pickle'):
     # dataSet.to_csv("test.csv", index=0)
     
     return dataSet
+
 
 class MiniBatch:
     def __init__(self,dataset,batch_size,unique_speakers=None):
@@ -78,6 +102,10 @@ class MiniBatch:
         self.dataset_batch = pd.DataFrame(pd.concat([anchor_batch,positive_batch,negative_batch],axis=0))
         # self.dataset_batch.to_csv("test1.csv",index=0)
         self.num_triplets = num_triplets
+    
+    def standard_normaliztion(self,x_array,epsilon=1e-12):
+        return np.array([(x-np.mean(x))/max(np.std(x),epsilon) for x in x_array])
+
 
     def to_inputs(self):
         new_x = []
@@ -87,6 +115,7 @@ class MiniBatch:
             with open(filename,"rb") as f:
                 load_dict = pickle.load(f)
                 x = load_dict["LogMel_Features"]
+                x = self.standard_normaliztion(x)
                 x = x[:, :, np.newaxis]
                 new_x.append(x)
 
@@ -114,6 +143,7 @@ def main():
     x,y = batch.to_inputs()
     b = x[0]
     input_shape = (b.shape[0],b.shape[1],b.shape[2])
+    print(input_shape)
 
 
 if __name__ == "__main__":

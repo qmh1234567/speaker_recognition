@@ -17,7 +17,40 @@ import librosa.display
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
 import wave
+import logging
+import math
+
+
+# class SilenceDetector(object):
+#     def __init__(self, threshold=20, bits_per_sample=16):
+#         self.cur_SPL = 0
+#         self.threshold = threshold
+#         self.bits_per_sample = bits_per_sample
+#         self.normal = pow(2.0, bits_per_sample - 1)
+#         self.logger = logging.getLogger('balloon_thrift')
+
+#     def is_silence(self, chunk):
+#         self.cur_SPL = self.soundPressureLevel(chunk)
+#         is_sil = self.cur_SPL < self.threshold
+#         # print('cur spl=%f' % self.cur_SPL)
+#         if is_sil:
+#             self.logger.debug('cur spl=%f' % self.cur_SPL)
+#         return is_sil
     
+#     def soundPressureLevel(self, chunk):
+#         value = math.pow(self.localEnergy(chunk), 0.5)
+#         value = value / len(chunk) + 1e-12
+#         value = 20.0 * math.log(value, 10)
+#         return value
+
+#     def localEnergy(self, chunk):
+#         power = 0.0
+#         for i in range(len(chunk)):
+#             sample = chunk[i] * self.normal
+#             power += sample*sample
+#         return power
+
+
 class Preprocess():
     def __init__(self, hparams):
         # Set hparams
@@ -46,6 +79,8 @@ class Preprocess():
             bar.next()
             # 去静音
             wav_arr, sample_rate = self.vad_process(path)
+            # signal,sample_rate = librosa.load(path,16000)
+            # wav_arr = self.vad_audio(signal,sample_rate)
             if sample_rate != 16000:
                 print("sample rate do meet the requirement")
                 exit()
@@ -64,6 +99,22 @@ class Preprocess():
         else:
             wav_arr = wav_arr[(n_sample-singal_len) //2:(n_sample+singal_len)//2]
         return wav_arr
+    
+    # remove VAD
+    def vad_audio(self,wav,sr,threshold = 10):
+        sil_detector = SilenceDetector(threshold)
+        new_wav = []
+        if sr != 16000:
+            wav = librosa.resample(wav, sr, 16000)
+            sr = 16000
+        for i in range(int(len(wav)/(sr*0.02))):
+            start = int(i*sr*0.02)
+            end = start + int(sr*0.02)
+            is_silence = sil_detector.is_silence(wav[start:end])
+            if not is_silence:
+                new_wav.extend(wav[start:end])
+        return np.array(new_wav)
+    
     
     # VAD去静音
     def vad_process(self, path):
@@ -86,8 +137,17 @@ class Preprocess():
         # Without writing, unpack total_wav into numpy [N,1] array
         wav_arr = np.frombuffer(total_wav, dtype=np.int16)
         # print("read audio data from byte string. np array of shape:"+str(wav_arr.shape))
-        wav_arr = wav_arr/(max(abs(wav_arr)))# 归一化
         return wav_arr, sample_rate
+    
+    
+    def plot_spectrogram(self,spec,ylabel):
+        fig = plt.figure()
+        heatmap = plt.pcolor(spec)
+        fig.colorbar(mappable=heatmap)
+        plt.xlabel('Time(s)')
+        plt.ylabel(ylabel)
+        plt.tight_layout()
+        # plt.show()
     
     # 提取fbank特征
     def extract_feature(self,wav_arr,sample_rate,path):
@@ -95,15 +155,16 @@ class Preprocess():
         logmel_feats = logfbank(
             wav_arr, samplerate=sample_rate, nfilt=self.hparams.spectrogram_scale)
         save_dict["LogMel_Features"] = logmel_feats
-        
+        # self.plot_spectrogram(logmel_feats.T,'Filter Banks')
         return save_dict    
-
+    
+    
     ## 写入pickle文件
     def create_pickle(self, path, wav_arr, sample_rate):
         if round((wav_arr.shape[0] / sample_rate), 1) >= self.hparams.segment_length:
             # 提取特征
             save_dict = self.extract_feature(wav_arr,sample_rate,path)
-
+            
             if self.hparams.data_type == "vox1" or self.hparams.data_type == "vox2":
                 data_id = "_".join(path.split("/")[-3:])
                 save_dict["SpkId"] = path.split("/")[-3]
@@ -136,33 +197,50 @@ class Preprocess():
         plt.figure()
         librosa.display.waveplot(wav_arr,sample_rate)
     
-    # 绘制语谱图
-    def draw_spectrum(self,wav_arr,sample_rate):
-        stft = librosa.stft(wav_arr)
-        Xdb = librosa.amplitude_to_db(abs(stft))
-        plt.figure(figsize=(7, 5))
-        librosa.display.specshow(Xdb, cmap='Greens',sr=sample_rate, x_axis='time', y_axis='hz')
-        plt.ylim([0,4000])
-        plt.colorbar()
-       
         
+    # 绘制语谱图
+    def draw_spectrum(self,filename):
+        f = wave.open(filename,'rb')
+        # 得到语音参数
+        params = f.getparams()
+        nchannels, sampwidth, framerate,nframes = params[:4]
+        # 得到的数据是字符串，需要将其转成int型
+        strData = f.readframes(nframes)
+        wavaData = np.fromstring(strData,dtype=np.int16)
+        # 归一化
+        wavaData = wavaData * 1.0/max(abs(wavaData))
+        # .T 表示转置
+        wavaData = np.reshape(wavaData,[nframes,nchannels]).T
+        f.close()
+        # 绘制频谱
+        plt.specgram(wavaData[0],Fs = framerate,scale_by_freq=True,sides='default')
+        plt.ylabel('Frequency')
+        plt.xlabel('Time(s)')
+        # plt.show()
+
+
 
     def test_singleAudio(self,path):
-        signal,sr = librosa.load(path,16000)
-        # self.draw_waveform(signal,sr)  # 预处理前
+        self.draw_spectrum(path)
+        signal,sample_rate = librosa.load(path,16000)
+        self.draw_waveform(signal,sample_rate)  # 预处理前
         # 去静音
+        # wav_arr = self.vad_audio(signal,sample_rate)
         wav_arr, sample_rate = self.vad_process(path)
-        # self.draw_waveform(wav_arr,sample_rate)  # 去静音后
+        self.draw_waveform(wav_arr,sample_rate)  # 去静音后
+        # plt.show()
+        # exit()
         if sample_rate != 16000:
             print("sample rate do meet the requirement")
             exit()
         # padding 音频裁减
         wav_arr = self.cut_audio(wav_arr,sample_rate)
-        
         # self.draw_waveform(wav_arr,sample_rate)  # 预处理后
-        self.draw_spectrum(wav_arr,sample_rate)
+        # self.draw_spectrum(wav_arr,sample_rate)
         # 提取特征并保存
         self.create_pickle(path, wav_arr, sample_rate)
+        # self.draw_spectrum(wav_arr,sample_rate)
+    
         plt.show()
     
 def main():
@@ -175,8 +253,8 @@ def main():
     # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/train/ --pk_dir=/home/qmh/Projects/Datasets/TIMIT_M/train/ --data_type=mit
     # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/test/ --pk_dir=/home/qmh/Projects/Datasets/TIMIT_M/test/ --data_type=mit
     # libri    
-    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/LibriSpeech/train-clean-100/ --pk_dir=/home/qmh/Projects/Datasets/LibriSpeech_M/train-clean-100/ --data_type=libri
-    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/LibriSpeech/test-clean/ --pk_dir=/home/qmh/Projects/Datasets/LibriSpeech_M/test-clean/ --data_type=libri
+    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/LibriSpeech/train-clean-100/ --pk_dir=/home/qmh/Projects/Datasets/LibriSpeech_O/train-clean-100/ --data_type=libri
+    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/LibriSpeech/test-clean/ --pk_dir=/home/qmh/Projects/Datasets/LibriSpeech_O/test-clean/ --data_type=libri
     parser.add_argument("--in_dir", type=str, required=True,
                         help="input audio data dir")
     parser.add_argument("--pk_dir", type=str, required=True,
@@ -194,8 +272,8 @@ def main():
     preprocess = Preprocess(args)
 
     preprocess.preprocess_data()
-    # path = "/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/train/dr4/fklc0/sa1.wav"
-    # path = "/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/train/dr1/fcjf0/sa1.wav"
+    # path = "/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/train/dr4/fcag0/sx153.wav"
+    # path = "/home/qmh/Projects/Datasets/LibriSpeech/train-clean-100/200/126784/200-126784-0025.wav"
     # preprocess.test_singleAudio(path)
 
 

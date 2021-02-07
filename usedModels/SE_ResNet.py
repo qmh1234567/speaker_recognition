@@ -110,8 +110,8 @@ class SE_ResNet():
         
         return model
 
-# if __name__ == "__main__":
-#     model = SE_ResNet()
-#     input_shape = (299,40,1)
-#     model = model.se_resNet(input_shape)
-#     print(model.summary())
+if __name__ == "__main__":
+    model = SE_ResNet()
+    input_shape = (299,40,1)
+    model = model.se_resNet(input_shape)
+    print(model.summary())

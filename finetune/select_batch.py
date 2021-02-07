@@ -207,7 +207,7 @@ def best_batch(model,batch_size,candidates=CANDIDATES_PER_BATCH):
 
 
 if __name__ == "__main__":
-    dataset_dir = "/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train"
+    dataset_dir = "/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train/"
     dataset = data_catalog(dataset_dir)
     
     unique_speakers = dataset['speaker_id'].unique()
@@ -222,7 +222,7 @@ if __name__ == "__main__":
         spk_utt_dict[labels[i]].append(files[i])
 
     input_shape = (299,40,1)
-    model= Att_DCNN.Att_DCNN().baseline_Model(input_shape)
+    model= Att_DCNN.Att_DCNN().proposed_model(input_shape)
     model_dir =  './../checkpoint/AttDCNN/timit' # 模型保存目录
     model.load_weights(f'{model_dir}/best.h5', by_name='True')
     

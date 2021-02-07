@@ -70,7 +70,7 @@ class PlotDET():
         return eer
 
     # 计算minDCF P_miss = frr  P_fa = far
-    def compute_minDCF2(P_miss,P_fa):
+    def compute_minDCF2(self,P_miss,P_fa):
         C_miss = C_fa = 1
         P_true = 0.01
         P_false = 1-P_true
@@ -121,39 +121,76 @@ class PlotDET():
         far[far >= 1] = 1-1e-5
         return frr,far
 
-
-    def main(self,hparams):
-        
-        b_frr,b_far = self.compute_frr_far(hparams.y_true,hparams.y_pre)
-        p_frr,p_far = self.compute_frr_far(hparams.y_true_p,hparams.y_pre_p)
+    def draw(self,hparams):
+        y_pre = np.load(hparams.y_pre)
+        y_true = np.load(hparams.y_true)
+        frr,far = self.compute_frr_far(y_true,y_pre)
         # 画图
         plt = self.plot_DET_curve()
-        x, y = norm.ppf(b_frr), norm.ppf(b_far)
-        plt.plot(x, y,label='baseline model')
-        x1,y1 = norm.ppf(p_frr),norm.ppf(p_far)
-        plt.plot(x1,y1,label='proposed model')
-        # plt.plot([-40, 1], [-40, 1])
+        x, y = norm.ppf(frr), norm.ppf(far)
+        plt.plot(x, y,label='SECNN model')
         plt.legend(fontsize=12)
         plt.xlabel('False Alarm probability(in %)', fontsize=12)
         plt.ylabel('Miss probability', fontsize=12)
         plt.show()
         
-        # 计算分数
-        eer = compute_EER(b_frr,b_far)
+         # 计算分数
+        eer = self.compute_EER(frr,far)
 
-        min_DCF_2 = compute_minDCF2(b_frr*100,b_far*100)
+        min_DCF_2 = self.compute_minDCF2(frr*100,far*100)
 
-        min_DCF_3 = compute_minDCF3(b_frr*100,b_far*100,min_DCF_2)
+        min_DCF_3 = self.compute_minDCF3(frr*100,far*100,min_DCF_2)
         
-        print(f'baseline model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
+        print(f'SECNN model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
 
-        eer = compute_EER(p_frr,p_far)
 
-        min_DCF_2 = compute_minDCF2(p_frr*100,p_far*100)
-
-        min_DCF_3 = compute_minDCF3(p_frr*100,p_far*100,min_DCF_2)
+    def main(self,hparams):
+        b_y_true = np.load(hparams.y_true)
+        b_y_pre = np.load(hparams.y_pre)
         
-        print(f'proposed model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
+        p_y_true = np.load(hparams.y_true_p)
+        p_y_pre = np.load(hparams.y_pre_p)
+        
+        d_y_true = np.load(hparams.y_true_d)
+        d_y_pre = np.load(hparams.y_pre_d)
+        
+        b_frr,b_far = self.compute_frr_far(b_y_true,b_y_pre)
+        p_frr,p_far = self.compute_frr_far(p_y_true,p_y_pre)
+        d_frr,d_far = self.compute_frr_far(d_y_true, d_y_pre)
+        
+        # 画图
+        plt = self.plot_DET_curve()
+        x, y = norm.ppf(b_frr), norm.ppf(b_far)
+        plt.plot(x, y,label='SECNN model')
+        
+        x1,y1 = norm.ppf(p_frr),norm.ppf(p_far)
+        plt.plot(x1,y1,label='Attentive CNN model')
+        
+        x2,y2 = norm.ppf(d_frr),norm.ppf(d_far)
+        plt.plot(x2,y2,label='Deep Speaker model')
+        
+        plt.plot([-40, 1], [-40, 1])
+        plt.legend(fontsize=12)
+        plt.xlabel('False Alarm probability(in %)', fontsize=12)
+        plt.ylabel('Miss probability', fontsize=12)
+        plt.show()
+        
+        # # 计算分数
+        # eer = self.compute_EER(b_frr,b_far)
+
+        # min_DCF_2 = self.compute_minDCF2(b_frr*100,b_far*100)
+
+        # min_DCF_3 = self.compute_minDCF3(b_frr*100,b_far*100,min_DCF_2)
+        
+        # print(f'SECNN model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
+
+        # eer = self.compute_EER(p_frr,p_far)
+
+        # min_DCF_2 = self.compute_minDCF2(p_frr*100,p_far*100)
+
+        # min_DCF_3 = self.compute_minDCF3(p_frr*100,p_far*100,min_DCF_2)
+        
+        # print(f'Attentive CNN model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
             
 
 if __name__ == "__main__":
@@ -161,14 +198,19 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
             
-    parser.add_argument("--y_true",type=str,help="the true lable file",default="./dataset/y_true.npy")
+    parser.add_argument("--y_true",type=str,help="the true lable file",default="./../dataset/SE_y_true.npy")
 
-    parser.add_argument("--y_pre",type=str,help="the pre lable file",default="./dataset/y_pre.npy")
+    parser.add_argument("--y_pre",type=str,help="the pre lable file",default="./../dataset/SE_y_pre.npy")
     
-    parser.add_argument("--y_true_p",type=str,help="the proposed model's true lable file",default="./dataset/y_true_p.npy")
+    parser.add_argument("--y_true_p",type=str,help="the proposed model's true lable file",default="./../dataset/Att_y_true.npy")
+     
+    parser.add_argument("--y_pre_p",type=str,help="the proposed model's true lable file",default="./../dataset/Att_y_pre.npy")
     
-    parser.add_argument("--y_pre_p",type=str,help="the proposed model's true lable file",default="./dataset/y_pre_p.npy")
+    parser.add_argument("--y_true_d",type=str,help="the proposed model's true lable file",default="./../dataset/Deep_y_true.npy")
+     
+    parser.add_argument("--y_pre_d",type=str,help="the proposed model's true lable file",default="./../dataset/Deep_y_pre.npy")
     
     args = parser.parse_args()
     
     plotDET.main(args)
+    # plotDET.draw(args)

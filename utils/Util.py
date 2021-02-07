@@ -2,6 +2,9 @@ from collections import Counter
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn import metrics
+import tqdm
+import pandas as pd
+
 
 class Util():
     
@@ -9,10 +12,12 @@ class Util():
     def caculate_distance(self,enroll_dataset, enroll_pre, test_pre):
         print("enroll_pre.shape=", enroll_pre.shape)
         dict_count = Counter(enroll_dataset[1])
+
         # each person get a enroll_pre
         speakers_pre = []
         # 得到注册说话人 remove repeat
         enroll_speakers = list(set(enroll_dataset[1]))
+
         enroll_speakers.sort(key=enroll_dataset[1].index)
       
         for speaker in enroll_speakers:
@@ -25,7 +30,6 @@ class Util():
         # caculate distance
         distances = []
         print("test_pre.shape=", test_pre.shape)  #(840,512) 840句话  512维
-       
         for i in range(enroll_pre.shape[0]):
             temp = []
             for j in range(test_pre.shape[0]):
@@ -80,6 +84,9 @@ class Util():
         distance_max = distances.max(axis=0)
         # 由于余弦距离可能是负值，故需要平移一下
         distance_max = (distance_max + 1) / 2
+        
+        np.save("./dataset/SE_y_pre.npy",distance_max)
+        np.save("./dataset/SE_y_true.npy",ismember_true)
      
         y_pro, eer, prauc, acc, auc_score = self.evaluate_metrics(
             ismember_true, distance_max)
@@ -92,11 +99,40 @@ class Util():
         #  remove repeat
         new_enroll_y = list(set(enroll_y))
         new_enroll_y.sort(key=list(enroll_y).index)
+        # print("new_enroll_y=",new_enroll_y)
         #  return the index of max distance of each sentence
         socre_index = distances.argmax(axis=0)
         y_pre = []
         for i in socre_index:
             y_pre.append(new_enroll_y[i])
+        # print("y_pre=",y_pre)
         return y_pre  # 获得每一句的说话人
     
     
+    # map utt to embedding
+    def map_utt2embedding(self,utt,label,model):
+        with open(utt,"rb") as f:
+            vec = load_dict["LogMel_Features"]
+            vec = vec[:,:,np.newaxis]
+            pre = np.squeeze(model.predict(vec))
+        return pre
+    
+    
+    # def speaker_verification(self,model,annotation_file):
+        
+    #     df = pd.read_csv(annotation_file)
+
+    #     y_true = list(map(int, df['Istarget']))
+        
+    #     paths = df['FilePath'].tolist()
+        
+    #     labels = df['SpeakerID'].tolist()
+        
+    #     # 列表去重
+        
+    #     # for index in tqdm.tqdm(range(0,len(y_true))):
+            
+    #     print(labels[:20])
+        
+    #     exit()
+    #     print(len(ismember_true))

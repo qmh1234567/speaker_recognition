@@ -29,6 +29,12 @@ TEST_NEGATIVE_No = 99  # 负语音样本的人数
 
 num_neg = TEST_NEGATIVE_No
 
+
+# 归一化
+def normalize_scores(m,epsilon=1e-12):
+    return (m - np.mean(m)) / max(np.std(m),epsilon)
+
+
 # 构建测试数据集
 def create_test_data(dataset,check_partial):
     global num_neg
@@ -38,7 +44,7 @@ def create_test_data(dataset,check_partial):
     num_triplets = len(unique_speakers)
     if check_partial:
         num_neg= 49
-        num_triplets = min(num_triplets,50)
+        num_triplets = min(num_triplets,30)
     test_batch = None
     for i in range(num_triplets):
          # 构建anchor
@@ -85,7 +91,7 @@ def to_inputs(dataset_batch,num_triplets):
         x = np.array(new_x) #（1530，299，40，1）
         # y = dataset_batch['speaker_id'].values  #（1530）
         new_y = np.hstack(([1],np.zeros(num_neg)))  # 1 positive, num_neg negative 这里需要注意，没有anchor的参与！！！
-        y = np.tile(new_y, num_triplets)  # (one hot) （1500）  
+        y = np.tile(new_y, num_triplets)  # (one hot) （1500）
         return x, y
 
 # 计算相似度
@@ -105,6 +111,19 @@ def call_similar(x):
         similar.extend(sim)
     return np.array(similar)
 
+
+
+# # 计算余弦距离，x1和x2已经进行l2归一化了
+# def batch_cosine_similarity(x1, x2):
+#     # https://en.wikipedia.org/wiki/Cosine_similarity
+#     # 1 = equal direction ; -1 = opposite direction
+#     mul = np.multiply(x1, x2)
+#     s = np.sum(mul,axis=1)
+
+#     #l1 = np.sum(np.multiply(x1, x1),axis=1)
+#     #l2 = np.sum(np.multiply(x2, x2), axis=1)
+#     # as values have have length 1, we don't need to divide by norm (as it is 1)
+#     return s
 
 # 计算余弦距离 
 def batch_cosine_similarity(x1,x2):

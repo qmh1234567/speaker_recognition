@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from sklearn import metrics
 import matplotlib.pyplot as plt
+import sys
+import os
 
 def evaluate_metrics(y_true, y_pres):
     plt.figure()
@@ -34,14 +36,64 @@ def evaluate_metrics(y_true, y_pres):
     return y_pro, eer, prauc, acc, auc_score
 
 
+def loss_plot(dataSetName,model_name):
+    dir1 = os.path.join("../npy/"+dataSetName,model_name)
+    accuracy = np.load(dir1+"/accuracy.npy")
+    losses = np.load(dir1+"/losses.npy")
+    val_acc = np.load(dir1+"/val_acc.npy")
+    val_loss = np.load(dir1+"/val_loss.npy")
+    iters = range(len(losses))
+    plt.figure()
+    # acc
+    plt.plot(iters, accuracy, label='train acc')
+    # loss
+    plt.plot(iters, losses, label='train loss')
+    # val_acc
+    plt.plot(iters,val_acc, label='val acc')
+    # val_loss
+    plt.plot(iters, val_loss, label='val loss')
+    # plt.ylim(0,max(self.losses[loss_type]))
+    plt.grid(True)
+    plt.xlabel('epoch')
+    plt.ylabel('acc-loss')
+    plt.legend(loc="upper right")
+    plt.show()
+    
+        
+
+def main():
+    dataSetName = "librispeech"
+    model_names1 = ["AttDCNN","SEResNet","deepSpk"]
+    model_names = ["Attentive DCNN","SECNN","Deep Speaker"]
+    plt.figure()
+    for i in range(len(model_names)):
+        dir1 = os.path.join("../npy/"+dataSetName,model_names1[i])
+        accuracy = np.load(dir1+"/accuracy.npy")
+        losses = np.load(dir1+"/losses.npy")
+        val_acc = np.load(dir1+"/val_acc.npy")
+        val_loss = np.load(dir1+"/val_loss.npy")
+        iters = range(len(losses))
+        # acc
+        # plt.plot(iters, accuracy, label=model_name+'_train acc')
+        # loss
+        # plt.plot(iters, losses, label=model_name+'_train loss')
+        # val_acc
+        plt.plot(iters,val_acc, label=model_names[i]+'_val acc')
+        # val_loss
+        plt.plot(iters, val_loss, label=model_names[i]+'_val loss')
+    # plt.ylim(0,max(self.losses[loss_type]))
+    plt.grid(True)
+    plt.xlabel('epoch')
+    plt.ylabel('acc-loss')
+    plt.legend(loc="upper right")
+    plt.show()
+
 
 if __name__ == "__main__":
-    distance = np.load('./npys/perfect.npy')
-    distance_nodrp = np.load('./npys/perfect_nodrop.npy')
-    distance_nose = np.load('./npys/perfect_nose.npy')
-    distance_nol2 = np.load('./npys/perfect_nol2.npy')
-    distance_noELU = np.load('./npys/perfect_noELU.npy')
-    distances = (distance,distance_nodrp,distance_nose,distance_nol2,distance_noELU)
-    df = pd.read_csv(c.ANNONATION_FILE)
-    ismember_true = list(map(int,df["Ismember"]))
-    ismember_pre = speaker_verification(distances, ismember_true)
+    
+    # dataSetName = sys.argv[1]
+    # model_name = sys.argv[2]
+    
+    # loss_plot(dataSetName,model_name)
+    main()
+    # python run.py --stage="test" --model_name="deepSpk" --target="SV"

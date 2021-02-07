@@ -35,7 +35,8 @@ def deep_speaker_loss(y_true, y_pred, alpha=ALPHA):
     # NEG EX 1 (512,)
     # NEG EX 2 (512,)
     # _____________________________________________________
-    split = K.shape(y_pred)[0] // 3
+    split = 32 # batchsize
+    # split = K.shape(y_pred)[0] // 3
 
     anchor = y_pred[0:split]
     positive_ex = y_pred[split:2 * split]
@@ -50,7 +51,8 @@ def deep_speaker_loss(y_true, y_pred, alpha=ALPHA):
     sap = batch_cosine_similarity(anchor, positive_ex)
     san = batch_cosine_similarity(anchor, negative_ex)
     loss = K.maximum(san - sap + alpha, 0.0)
-    total_loss = K.mean(loss)
+    # total_loss = K.mean(loss)
+    total_loss = K.sum(loss)
     return total_loss
 
 

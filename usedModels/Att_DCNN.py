@@ -222,11 +222,15 @@ class Att_DCNN():
 
         x = GlobalAveragePooling2D(name='avg_pool')(x)
         
+        # x = Dropout(0.5,name=f'dropout')(x)
+        
         x = Dense(1024,name='fc1')(x)
         
         x = BatchNormalization(name='bn_fc1')(x)
         
         x = Activation('relu',name='fc1_relu')(x)
+        
+        # x = Dropout(0.5,name=f'dropout')(x)
         
         return Model(x_in,x,name='ProposedModle')
     

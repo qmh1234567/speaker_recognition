@@ -10,6 +10,7 @@ import os
 import tensorflow as tf
 from collections import Counter
 import numpy as np
+import keras
 from progress.bar import Bar
 from keras.layers import Dense
 from keras import Model
@@ -58,8 +59,8 @@ def createModel(modelName,input_shape=(299,40,1)):
     elif modelName== "SEResNet":
         model = SE_ResNet.SE_ResNet().se_resNet(input_shape)
     elif modelName == "AttDCNN":
-        model = Att_DCNN.Att_DCNN().baseline_Model(input_shape)
-    # print(model.summary())
+        model = Att_DCNN.Att_DCNN().proposed_model(input_shape)
+    print(model.summary())
     return model
 
 # add softmax layer
@@ -75,25 +76,17 @@ def train(model,dataLoad,hparams):
     dataSetName = hparams.train_pk_dir.split("/")[-3].split("_")[0].lower()
     
     model_dir = os.path.join(MODEL_DIR + hparams.model_name,dataSetName)
-    
+        
     if not os.path.exists(model_dir):
             os.mkdir(model_dir)
             
-    train_dataset, val_dataset = dataLoad.createTrainDataSet(hparams.train_pk_dir)
+    # batch sequence
+    train_sequence,val_sequence,nclass = dataLoad.data_flow(hparams.train_pk_dir,BATCH_SIZE)
     
-    nclass = len(set(train_dataset[1]))
-    
-    print("nclass = ",nclass)
-    
-    labels_to_id = dataLoad.Map_label_to_dict(train_dataset[1])
     
     model = addSoftmax(model,nclass) 
-    
-    # print(model.summary())
-    
-    
+
     # train model
-    
     history = LossHistory.LossHistory()
     
     sgd = optimizers.SGD(lr=LEARN_RATE,momentum=0.9) #TIMIT libri-seresnet
@@ -101,85 +94,113 @@ def train(model,dataLoad,hparams):
     model.compile(loss='categorical_crossentropy', optimizer=sgd,
                     metrics=['accuracy'])
     
-    
-    model.fit_generator(dataLoad.Batch_generator(train_dataset, labels_to_id, BATCH_SIZE, nclass),
-                        steps_per_epoch=len(train_dataset[0])//BATCH_SIZE, epochs=EPOCHS,
-                        validation_data=dataLoad.load_validation_data(
-                            val_dataset, labels_to_id, nclass),
-                        validation_steps=len(val_dataset[0])//BATCH_SIZE,
+    model.fit_generator(train_sequence,
+                        steps_per_epoch=len(train_sequence), epochs=EPOCHS,
+                        validation_data=val_sequence,
+                        validation_steps=len(val_sequence),
                         callbacks=[
-                            ModelCheckpoint(f'{model_dir}/best.h5',
+                            ModelCheckpoint(f'{model_dir}/best1.h5',
                                 monitor='val_loss', save_best_only=True, mode='min'),
                             ReduceLROnPlateau(monitor='val_loss', factor=0.1,
-                                patience=50, mode='min'),
+                                patience=10, mode='min'),
                             EarlyStopping(monitor='val_loss', patience=10),
                             history,
     ])
     
     # 绘制loss曲线
-    history.loss_plot('epoch')
+    history.loss_plot('epoch',dataSetName,hparams.model_name)
     
 
 def test(model,dataLoad,util,hparams):
     
     # print(model.summary())
     
-    test_dataset, enroll_dataset = dataLoad.createTestDataSet(
+    eval_dataset, enroll_dataset = dataLoad.createTestDataSet(
             hparams.test_pk_dir,target=hparams.target, split_ratio=0.5)
     
-    labels_to_id = dataLoad.Map_label_to_dict(labels=enroll_dataset[1])
-    
-    # load weights
     dataSetName = hparams.train_pk_dir.split("/")[-3].split("_")[0].lower()
+    
+    dataSetDir = os.path.join("./dataset",dataSetName)
+    
+  
+    # load weights
     model_dir = os.path.join(MODEL_DIR + hparams.model_name,dataSetName)
     
-    # model.load_weights(f'{model_dir}/best.h5', by_name='True') 
-    model.load_weights(f'{model_dir}/save/best_model600_0.02758.h5', by_name='True')
+    model.load_weights(f'{model_dir}/5.82_300.h5',by_name='True') 
+    # model.load_weights(f'{model_dir}/save/best_model5800_0.02675.h5', by_name='True')
         
-    # load all data
+    # load enroll data
     print("loading data...") 
     (enroll_x, enroll_y) = dataLoad.load_all_data(enroll_dataset, 'enroll')
-    (test_x, test_y) = dataLoad.load_all_data(test_dataset, 'test')
     
+    (eval_x, eval_y) = dataLoad.load_all_data(eval_dataset, 'test')
+
     # 预测  主要获取说话人嵌入
     enroll_pre = np.squeeze(model.predict(enroll_x))
-    test_pre = np.squeeze(model.predict(test_x))
+
+    eval_pre = np.squeeze(model.predict(eval_x))
     
     # 计算余弦距离
-    distances = util.caculate_distance(enroll_dataset,enroll_pre, test_pre)
+    distances = util.caculate_distance(enroll_dataset,enroll_pre, eval_pre)
+
     
     if hparams.target=="SI":
+    
         # speaker identification
-        test_y_pre = util.speaker_identification(distances, enroll_y)
+        eval_y_pre = util.speaker_identification(distances, enroll_y)
         
         # compute result
-        result = util.compute_result(test_y_pre, test_y)
+        result = util.compute_result(eval_y_pre, eval_y)
         
+        data_dict = {
+            'path': eval_dataset[0],
+            'predict': eval_y_pre,
+            'true': eval_y,
+            'isRight':result
+        }
+        
+        data = pd.DataFrame(data_dict)
+        data.to_csv('result.csv', index=0)
         score = sum(result)/len(result)
         print(f"score={score}")
     else:
-        df = pd.read_csv(dataLoad.ANNONATION_FILE)
+        
+        # keras.backend.set_learning_phase(1)
+        
+        # annotation_file = os.path.join(dataSetDir,"speaker_ver.csv")
+        
+        annotation_file = './dataset/annonation.csv'
+        # util.speaker_verification(model,annotation_file)
 
-        ismember_true = list(map(int, df['Ismember']))
+        df = pd.read_csv(annotation_file)
+
+        # ismember_true = list(map(int, df['Ismember']))
         
-        score_index = distances.argmax(axis=0)
+        ismember_true = df['Ismember'].tolist()
         
-        # 对每列求最大值，得到每句话的最可能说话人
-        y_pred = distances.max(axis=0)
+        # # score_index = distances.argmax(axis=0)
         
+        # # 对每列求最大值，得到每句话的最可能说话人
+        # y_pred = distances.max(axis=0)
+        # # # 每个元素复制nclass次
+        # # nclass = len(set(enroll_y))
+        # # y_prod = []
+        # # for i in range(len(y_pred)):
+        # #     y_prod.extend([y_pred[i]]*nclass)
         
-        fm, acc, eer = eval_metrics.evaluate(y_pred, ismember_true)
+        # y_prod = np.array(y_pred)
+        # fm, acc, eer = eval_metrics.evaluate(y_prod, ismember_true)
         
-        print(f'eer={eer}\t fm={fm} \t acc={acc}\t')
+        # print(f'eer={eer}\t fm={fm} \t acc={acc}\t')
         
-        # # np.save('./npys/perfect_noELU.npy',distances)
-        # ismember_pre = util.speaker_verification(distances, ismember_true)
+        # np.save('./npys/perfect_noELU.npy',distances)
+        ismember_pre = util.speaker_verification(distances, ismember_true)
         
-        # # compute result
-        # result = util.compute_result(ismember_pre, ismember_true)
+        # compute result
+        result = util.compute_result(ismember_pre, ismember_true)
         
-        # score = sum(result)/len(result)
-        # print(f"score={score}")
+        score = sum(result)/len(result)
+        print(f"score={score}")
 
 def main(hparams):    
         
@@ -201,7 +222,7 @@ def main(hparams):
 if __name__ == "__main__":
     
     # nohup python run.py --stage="train" --model_name="deepSpk" --target="SI" > output.out &
-    # python run.py --stage="test" --model_name="deepSpk" --target="SV"
+    # python run.py --stage="train" --model_name="SEResNet" --target="SV"
     parser = argparse.ArgumentParser()
         
     parser.add_argument("--stage",type=str,required=True,help="train or test",choices=["train","test"])
@@ -210,9 +231,12 @@ if __name__ == "__main__":
     
     parser.add_argument("--target",type=str,required=True,help="SV or SI ,which is used in test stage",choices=["SV","SI"])
     
-    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_M/train-clean-100/") # 更换数据集时要修改
+    # TIMIT
+    # parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train")
+    # parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test")  
     
-    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_M/test-clean/")     
+    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/train-clean-100/") # 更换数据集时要修改
+    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/test-clean/")     
     
     args = parser.parse_args()
     

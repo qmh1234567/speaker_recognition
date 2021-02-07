@@ -37,11 +37,12 @@ import usedModels.Att_DCNN as Att_DCNN
 import utils.DataLoad as DataLoad
 import utils.Util as Util
 import utils.LossHistory as LossHistory
-from random_batch import stochastic_mini_batch,data_catalog
+from random_batch import stochastic_mini_batch,data_catalog,split_dataset
 from triplet_loss import deep_speaker_loss
 import logging
 import pickle
 from time import time
+
 
 # OPTIONAL: control usage of GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -71,7 +72,7 @@ def createModel(modelName,input_shape=(299,40,1)):
     elif modelName== "SEResNet":
         model = SE_ResNet.SE_ResNet().se_resNet(input_shape)
     elif modelName == "AttDCNN":
-        model = Att_DCNN.Att_DCNN().baseline_Model(input_shape)
+        model = Att_DCNN.Att_DCNN().proposed_model(input_shape)
     # print(model.summary())
     return model
 
@@ -89,12 +90,20 @@ def train(model,dataLoad,hparams):
     best_model_dir = os.path.join(model_dir,"save")
     if not os.path.exists(best_model_dir):
             os.mkdir(best_model_dir)
-            
+    
+    
+    # 没有验证集时，需要将注册集切分一部分出来作为验证集
+    # train_paths,val_paths = split_dataset(hparams.train_pk_dir)
+    
+    # train_dataset = data_catalog(train_paths)
+    
+    # val_dataset = data_catalog(val_paths)
+    
     train_dataset = data_catalog(hparams.train_pk_dir)
     test_dataset = data_catalog(hparams.test_pk_dir)
     
     # 配置模型
-    model.load_weights(f'{model_dir}/best.h5', by_name='True') # 加载预训练权重
+    model.load_weights(f'{model_dir}/4.76_300.h5', by_name='True') # 加载预训练权重
     
     sgd = optimizers.SGD(lr=LEARN_RATE,momentum=0.9) #TIMIT libri-seresnet
     model.compile(optimizer=sgd, loss=deep_speaker_loss)
@@ -114,10 +123,10 @@ def train(model,dataLoad,hparams):
         
         logging.info('== Processed in {0:.2f}s by the network, training loss = {1}.'.format(time() - orig_time, loss))
     
-        # 每10步评估一下模型
+        # 每10步评估一下模型 
         if (grad_steps) % 10 == 0:
             
-            fm1, acc1, eer1 = eval_model(model,train_dataset, hparams.batch_size*hparams.triplet_per_batch, check_partial=True)
+            fm1, acc1, eer1 = eval_model(model,test_dataset, hparams.batch_size*hparams.triplet_per_batch, check_partial=True)
             logging.info('test training data EER = {0:.3f}, F-measure = {1:.3f}, Accuracy = {2:.3f} '.format(eer1, fm1, acc1))
             
             with open(f'{best_model_dir}/train_acc_eer.txt', "a") as f:
@@ -126,7 +135,7 @@ def train(model,dataLoad,hparams):
         # 每200步，测试一下模型
         if (grad_steps ) % TEST_PER_EPOCHS == 0 :
             
-            fm, acc, eer = eval_model(model,train_dataset,hparams.batch_size*hparams.triplet_per_batch,check_partial=False) # 修改
+            fm, acc, eer = eval_model(model,test_dataset,hparams.batch_size*hparams.triplet_per_batch,check_partial=False) 
             
             logging.info('== Testing model after batch #{0}'.format(grad_steps))
             logging.info('EER = {0:.3f}, F-measure = {1:.3f}, Accuracy = {2:.3f} '.format(eer, fm, acc))
@@ -137,7 +146,7 @@ def train(model,dataLoad,hparams):
         # 每200步保存一下模型
         if (grad_steps ) % SAVE_PER_EPOCHS == 0:
             
-            model.save_weights('{0}/model_{1}_{2:.5f}.h5'.format(model_dir, grad_steps, loss))
+            model.save_weights('{0}/model_{1}_{2:.5f}.h5'.format(model_dir, grad_steps, eer))
             
             if eer < lasteer:
                 files = sorted(filter(lambda f: os.path.isfile(f) and f.endswith(".h5"),
@@ -183,13 +192,13 @@ if __name__ == "__main__":
     
     parser.add_argument("--target",type=str,required=True,help="SV or SI ,which is used in test stage",choices=["SV","SI"])
     
-    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_M/train-clean-100/") # 更换数据集时要修改
+    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train/") # 更换数据集时要修改
     
-    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_M/test-clean/")  # 更换数据集时要修改
+    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test")  # 更换数据集时要修改
     
     parser.add_argument("--batch_size",type=int,default=32)
     
     parser.add_argument("--triplet_per_batch",type=int,default=3)
     args = parser.parse_args()
-    
+     
     main(args)

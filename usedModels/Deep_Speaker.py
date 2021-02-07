@@ -36,7 +36,7 @@ class DeepSpeaker():
         x = self.clipped_relu(x)
         
         x = Conv2D(filters,kernel_size=kernel_size,strides=(1,1),padding='same',
-                kernel_regularizer=regularizers.l2(l=self.WEIGHT_DECAY),name=f'{name}_convb')(x_in)
+                kernel_regularizer=regularizers.l2(l=self.WEIGHT_DECAY),name=f'{name}_convb')(x)
         
         x = BatchNormalization(name=f'{name}_bn2')(x)
         
@@ -76,21 +76,26 @@ class DeepSpeaker():
         x = self.conv_and_res_block(x,512)
         
         # average
-        x = Lambda(lambda y:K.mean(y,axis=[1,2]),name='avgpool')(x)
+        # x = Lambda(lambda y:K.mean(y,axis=[1,2]),name='avgpool')(x)
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
         
         # affine
-        x = Dense(512,name='affine')(x)
+        x = Dense(512,name='fc1')(x)
+        
+        x = BatchNormalization(name='bn_fc1')(x)
+        
+        x = Activation('relu',name='fc1_relu')(x)
         
         # 归一化
-        x = Lambda(lambda y:K.l2_normalize(y,axis=1),name='ln')(x)
+        # x = Lambda(lambda y:K.l2_normalize(y,axis=1),name='ln')(x)
         
         model = Model(inputs=[x_in],outputs=[x],name='deepspeaker')
         
         return model
         
 
-# if __name__ == "__main__":
-#     model = DeepSpeaker()
-#     input_shape = (299,40,1)
-#     model = model.deep_speaker_model(input_shape)
-#     print(model.summary())
+if __name__ == "__main__":
+    model = DeepSpeaker()
+    input_shape = (299,40,1)
+    model = model.deep_speaker_model(input_shape)
+    print(model.summary())

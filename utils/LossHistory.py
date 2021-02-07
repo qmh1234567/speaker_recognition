@@ -1,7 +1,8 @@
 import keras
 import matplotlib.pyplot as plt
 import math
-
+import numpy as np
+import os
 #写一个LossHistory类，保存loss和acc
 class LossHistory(keras.callbacks.Callback):
     
@@ -23,8 +24,15 @@ class LossHistory(keras.callbacks.Callback):
         self.val_loss['epoch'].append(logs.get('val_loss'))
         self.val_acc['epoch'].append(logs.get('val_accuracy'))
     
-    def loss_plot(self, loss_type):
+    def loss_plot(self, loss_type,dataSetName,model_name):
         iters = range(len(self.losses[loss_type]))
+        dir1 = os.path.join("./npy/"+dataSetName,model_name)
+        if not os.path.exists(dir1):
+            os.makedirs(dir1)
+        np.save(dir1+"/accuracy.npy",self.accuracy[loss_type])
+        np.save(dir1+"/losses.npy",self.losses[loss_type])
+        np.save(dir1+"/val_acc.npy",self.val_acc[loss_type])
+        np.save(dir1+"/val_loss.npy",self.val_loss[loss_type])
         plt.figure()
         # acc
         plt.plot(iters, self.accuracy[loss_type], 'r', label='train acc')
