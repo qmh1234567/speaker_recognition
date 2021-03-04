@@ -82,7 +82,9 @@ class DeepSpeaker():
         # affine
         x = Dense(512,name='fc1')(x)
         
-        x = BatchNormalization(name='bn_fc1')(x)
+        #no BN
+        
+        x = BatchNormalization(name='bn_fc1')(x)  
         
         x = Activation('relu',name='fc1_relu')(x)
         

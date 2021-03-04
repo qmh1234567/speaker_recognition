@@ -65,10 +65,9 @@ class BaseSequence(Sequence):
 
 class DataLoad():
     
-    def __init__(self):
-        self.ANNONATION_FILE = './dataset/annonation.csv'  # 测试数据集表格
-        self.ENROLL_NUMBER = 20  # 注册人数  推荐为测试数据集的一半作为注册人数
-        self.ENROLL_FILE = './dataset/enrollment.csv' # 注册数据集表格
+    def __init__(self,annotation_file='./dataset/annonation.csv'):
+     
+        self.ANNONATION_FILE = annotation_file
 
     # 标签的映射函数
     def Map_label_to_dict(self,labels):
@@ -164,14 +163,14 @@ class DataLoad():
             data = pd.DataFrame(data_dict)
             data.to_csv(self.ANNONATION_FILE, index=0)
             print(f"wirte to {self.ANNONATION_FILE} succeed")
-            # 注册数据集
-            data_dict = {
-                'FilePath': val_paths,
-                'SpeakerID': val_labels
-            }
-            data = pd.DataFrame(data_dict)
-            data.to_csv(self.ENROLL_FILE, index=0)
-            print(f"wirte to {self.ENROLL_FILE} succeed")
+            # # 注册数据集
+            # data_dict = {
+            #     'FilePath': val_paths,
+            #     'SpeakerID': val_labels
+            # }
+            # data = pd.DataFrame(data_dict)
+            # data.to_csv(self.ENROLL_FILE, index=0)
+            # print(f"wirte to {self.ENROLL_FILE} succeed")
             
         else:
             # if not os.path.exists(self.ANNONATION_FILE):
@@ -185,9 +184,12 @@ class DataLoad():
             
             new_audio_labels.sort(key=audio_labels.index)
             
+            enroll_number = len(set(audio_labels))/2
+            # print("enroll_number=",enroll_number)
+            
             # 从测试集中选出ENROLL_NUMBER个人作为注册说话人，[:cut_index]句话
             for index, speaker in enumerate(new_audio_labels):
-                if index == self.ENROLL_NUMBER:
+                if index == enroll_number:
                     break
                 else:
                     cut_index += dict_count[speaker]
@@ -218,15 +220,15 @@ class DataLoad():
             }
             data = pd.DataFrame(data_dict)
             data.to_csv(self.ANNONATION_FILE, index=0)
-            print(f"wirte to {self.ANNONATION_FILE} succeed")
-            # 注册数据集
-            data_dict = {
-                'FilePath': val_paths,
-                'SpeakerID': val_labels
-            }
-            data = pd.DataFrame(data_dict)
-            data.to_csv(self.ENROLL_FILE, index=0)
-            print(f"wirte to {self.ENROLL_FILE} succeed")
+            # print(f"wirte to {self.ANNONATION_FILE} succeed")
+            # # 注册数据集
+            # data_dict = {
+            #     'FilePath': val_paths,
+            #     'SpeakerID': val_labels
+            # }
+            # data = pd.DataFrame(data_dict)
+            # data.to_csv(self.ENROLL_FILE, index=0)
+            # print(f"wirte to {self.ENROLL_FILE} succeed")
             # else:
             #     data = pd.DataFrame(pd.read_csv(self.ANNONATION_FILE))
             #     train_paths = data['FilePath'].tolist()
@@ -240,10 +242,10 @@ class DataLoad():
         test_dataset = (test_paths, test_labels)
         val_dataset = (val_paths, val_labels)
         
-        print("len(train_paths)=", len(test_paths))
-        print("len(val_paths)=", len(val_paths))
-        print("len(audio_paths)=", len(audio_labels))
-        print("len(set(train_labels))=", len(set(test_labels)))
+        # print("len(train_paths)=", len(test_paths))
+        # print("len(val_paths)=", len(val_paths))
+        # print("len(audio_paths)=", len(audio_labels))
+        # print("len(set(train_labels))=", len(set(test_labels)))
         return test_dataset, val_dataset
 
     def standard_normaliztion(self,x_array,epsilon=1e-12):

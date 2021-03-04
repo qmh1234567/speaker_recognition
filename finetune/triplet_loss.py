@@ -6,6 +6,8 @@ ALPHA = 0.1  # used in Deep Speaker.
 import numpy as np
 import tensorflow as tf
 
+
+BATCH_SIZE = 16
 # def batch_cosine_similarity(x1, x2):
 #     # https://en.wikipedia.org/wiki/Cosine_similarity
 #     # 1 = equal direction ; -1 = opposite direction
@@ -35,7 +37,7 @@ def deep_speaker_loss(y_true, y_pred, alpha=ALPHA):
     # NEG EX 1 (512,)
     # NEG EX 2 (512,)
     # _____________________________________________________
-    split = 32 # batchsize
+    split = BATCH_SIZE # batchsize
     # split = K.shape(y_pred)[0] // 3
 
     anchor = y_pred[0:split]

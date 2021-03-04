@@ -61,6 +61,25 @@ def loss_plot(dataSetName,model_name):
     
         
 
+def auc_plot():
+    dir1 = os.path.join("../npy/timit/deepSpk/")
+    fpr = np.load(dir1+'/dp_fpr.npy')
+    tpr = np.load(dir1+'/dp_tpr.npy')
+    noBN_fpr = np.load(dir1+'/dp_fpr_noBN.npy')
+    noBN_tpr = np.load(dir1+'/dp_tpr_noBN.npy')
+    auc = metrics.auc(fpr, tpr)
+    plt.figure()
+    plt.plot(fpr, tpr, label='no_drop')
+    plt.plot(noBN_fpr, noBN_tpr, label='no_BN')
+    plt.plot(np.arange(1, 0, -0.01), np.arange(0, 1, 0.01))
+    plt.legend()
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
+    plt.xlabel('false positive rate (fpr)')
+    plt.ylabel('true positive rate (tpr)')
+    plt.title(f'ROC curve, AUC score={auc}')
+    plt.show()
+
 def main():
     dataSetName = "librispeech"
     model_names1 = ["AttDCNN","SEResNet","deepSpk"]
@@ -95,5 +114,7 @@ if __name__ == "__main__":
     # model_name = sys.argv[2]
     
     # loss_plot(dataSetName,model_name)
-    main()
+    # main()
     # python run.py --stage="test" --model_name="deepSpk" --target="SV"
+    
+    auc_plot()

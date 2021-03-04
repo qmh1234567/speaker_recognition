@@ -126,8 +126,8 @@ def test(model,dataLoad,util,hparams):
     # load weights
     model_dir = os.path.join(MODEL_DIR + hparams.model_name,dataSetName)
     
-    model.load_weights(f'{model_dir}/5.82_300.h5',by_name='True') 
-    # model.load_weights(f'{model_dir}/save/best_model5800_0.02675.h5', by_name='True')
+    # model.load_weights(f'{model_dir}/13.57_98.h5',by_name='True') 
+    model.load_weights(f'{model_dir}/save/best_model18500_0.0554.h5', by_name='True')
         
     # load enroll data
     print("loading data...") 
@@ -194,7 +194,7 @@ def test(model,dataLoad,util,hparams):
         # print(f'eer={eer}\t fm={fm} \t acc={acc}\t')
         
         # np.save('./npys/perfect_noELU.npy',distances)
-        ismember_pre = util.speaker_verification(distances, ismember_true)
+        ismember_pre,_ = util.speaker_verification(distances, ismember_true)
         
         # compute result
         result = util.compute_result(ismember_pre, ismember_true)
@@ -232,11 +232,11 @@ if __name__ == "__main__":
     parser.add_argument("--target",type=str,required=True,help="SV or SI ,which is used in test stage",choices=["SV","SI"])
     
     # TIMIT
-    # parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train")
-    # parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test")  
+    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train")
+    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test")  
     
-    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/train-clean-100/") # 更换数据集时要修改
-    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/test-clean/")     
+    # parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/train-clean-100/") # 更换数据集时要修改
+    # parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/test-clean/")     
     
     args = parser.parse_args()
     

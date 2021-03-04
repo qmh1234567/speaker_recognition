@@ -151,12 +151,12 @@ class PlotDET():
         p_y_true = np.load(hparams.y_true_p)
         p_y_pre = np.load(hparams.y_pre_p)
         
-        d_y_true = np.load(hparams.y_true_d)
-        d_y_pre = np.load(hparams.y_pre_d)
+        # d_y_true = np.load(hparams.y_true_d)
+        # d_y_pre = np.load(hparams.y_pre_d)
         
         b_frr,b_far = self.compute_frr_far(b_y_true,b_y_pre)
         p_frr,p_far = self.compute_frr_far(p_y_true,p_y_pre)
-        d_frr,d_far = self.compute_frr_far(d_y_true, d_y_pre)
+        # d_frr,d_far = self.compute_frr_far(d_y_true, d_y_pre)
         
         # 画图
         plt = self.plot_DET_curve()
@@ -166,8 +166,8 @@ class PlotDET():
         x1,y1 = norm.ppf(p_frr),norm.ppf(p_far)
         plt.plot(x1,y1,label='Attentive CNN model')
         
-        x2,y2 = norm.ppf(d_frr),norm.ppf(d_far)
-        plt.plot(x2,y2,label='Deep Speaker model')
+        # x2,y2 = norm.ppf(d_frr),norm.ppf(d_far)
+        # plt.plot(x2,y2,label='Deep Speaker model')
         
         plt.plot([-40, 1], [-40, 1])
         plt.legend(fontsize=12)
@@ -175,22 +175,22 @@ class PlotDET():
         plt.ylabel('Miss probability', fontsize=12)
         plt.show()
         
-        # # 计算分数
-        # eer = self.compute_EER(b_frr,b_far)
+        # 计算分数
+        eer = self.compute_EER(b_frr,b_far)
 
-        # min_DCF_2 = self.compute_minDCF2(b_frr*100,b_far*100)
+        min_DCF_2 = self.compute_minDCF2(b_frr*100,b_far*100)
 
-        # min_DCF_3 = self.compute_minDCF3(b_frr*100,b_far*100,min_DCF_2)
+        min_DCF_3 = self.compute_minDCF3(b_frr*100,b_far*100,min_DCF_2)
         
-        # print(f'SECNN model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
+        print(f'SECNN model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
 
-        # eer = self.compute_EER(p_frr,p_far)
+        eer = self.compute_EER(p_frr,p_far)
 
-        # min_DCF_2 = self.compute_minDCF2(p_frr*100,p_far*100)
+        min_DCF_2 = self.compute_minDCF2(p_frr*100,p_far*100)
 
-        # min_DCF_3 = self.compute_minDCF3(p_frr*100,p_far*100,min_DCF_2)
+        min_DCF_3 = self.compute_minDCF3(p_frr*100,p_far*100,min_DCF_2)
         
-        # print(f'Attentive CNN model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
+        print(f'Attentive CNN model:\t eer={eer}\t min_DCF_2={min_DCF_2} \t min_DCF_3={min_DCF_3}\t')
             
 
 if __name__ == "__main__":
@@ -206,9 +206,9 @@ if __name__ == "__main__":
      
     parser.add_argument("--y_pre_p",type=str,help="the proposed model's true lable file",default="./../dataset/Att_y_pre.npy")
     
-    parser.add_argument("--y_true_d",type=str,help="the proposed model's true lable file",default="./../dataset/Deep_y_true.npy")
+    # parser.add_argument("--y_true_d",type=str,help="the proposed model's true lable file",default="./../dataset/Deep_y_true.npy")
      
-    parser.add_argument("--y_pre_d",type=str,help="the proposed model's true lable file",default="./../dataset/Deep_y_pre.npy")
+    # parser.add_argument("--y_pre_d",type=str,help="the proposed model's true lable file",default="./../dataset/Deep_y_pre.npy")
     
     args = parser.parse_args()
     

@@ -10,7 +10,7 @@ class Util():
     
     # 计算余弦距离
     def caculate_distance(self,enroll_dataset, enroll_pre, test_pre):
-        print("enroll_pre.shape=", enroll_pre.shape)
+        # print("enroll_pre.shape=", enroll_pre.shape)
         dict_count = Counter(enroll_dataset[1])
 
         # each person get a enroll_pre
@@ -26,10 +26,10 @@ class Util():
             speakers_pre.append(np.mean(speaker_pre, axis=0))
 
         enroll_pre = np.array(speakers_pre)
-        print("new_enroll_pre.shape=", enroll_pre.shape)  #(168,512)  168人 512维
+        # print("new_enroll_pre.shape=", enroll_pre.shape)  #(168,512)  168人 512维
         # caculate distance
         distances = []
-        print("test_pre.shape=", test_pre.shape)  #(840,512) 840句话  512维
+        # print("test_pre.shape=", test_pre.shape)  #(840,512) 840句话  512维
         for i in range(enroll_pre.shape[0]):
             temp = []
             for j in range(test_pre.shape[0]):
@@ -39,7 +39,7 @@ class Util():
                 temp.append(s)
             distances.append(temp)
         distances = np.array(distances)
-        print("distances.shape=", distances.shape) #(168,840)  168人  840句 
+        # print("distances.shape=", distances.shape) #(168,840)  168人  840句 
         return distances
     
     
@@ -54,16 +54,19 @@ class Util():
     def evaluate_metrics(self,y_true, y_pre):
         fpr, tpr, thresholds = metrics.roc_curve(y_true, y_pre, pos_label=1)
         auc = metrics.auc(fpr, tpr)
-        plt.figure()
-        plt.plot(fpr, tpr, color='green', label='ROC')
-        plt.plot(np.arange(1, 0, -0.01), np.arange(0, 1, 0.01))
-        plt.legend()
-        plt.xlim([0, 1])
-        plt.ylim([0, 1])
-        plt.xlabel('fpr')
-        plt.ylabel('tpr')
-        plt.title(f'ROC curve, AUC score={auc}')
-        plt.show()
+        
+        # np.save('./npy/timit/deepSpk/dp_fpr_noBN.npy',fpr)
+        # np.save('./npy/timit/deepSpk/dp_tpr_noBN.npy',tpr)
+        # plt.figure()
+        # plt.plot(fpr, tpr, color='green', label='ROC')
+        # plt.plot(np.arange(1, 0, -0.01), np.arange(0, 1, 0.01))
+        # plt.legend()
+        # plt.xlim([0, 1])
+        # plt.ylim([0, 1])
+        # plt.xlabel('fpr')
+        # plt.ylabel('tpr')
+        # plt.title(f'ROC curve, AUC score={auc}')
+        # plt.show()
 
         threshold_index = np.argmin(abs(1-tpr - fpr))
         threshold = thresholds[threshold_index]
@@ -85,14 +88,20 @@ class Util():
         # 由于余弦距离可能是负值，故需要平移一下
         distance_max = (distance_max + 1) / 2
         
-        np.save("./dataset/SE_y_pre.npy",distance_max)
-        np.save("./dataset/SE_y_true.npy",ismember_true)
+        # np.save("./dataset/SE_y_pre.npy",distance_max)
+        # np.save("./dataset/SE_y_true.npy",ismember_true)
+        
+        np.save("./dataset/Att_y_pre.npy",distance_max)
+        np.save("./dataset/Att_y_true.npy",ismember_true)
+        
+        # np.save("./dataset/Deep_y_pre.npy",distance_max)
+        # np.save("./dataset/Deep_y_true.npy",ismember_true)
      
         y_pro, eer, prauc, acc, auc_score = self.evaluate_metrics(
             ismember_true, distance_max)
         
         print(f'eer={eer}\t prauc={prauc} \t acc={acc}\t auc_score={auc_score}\t')
-        return y_pro
+        return y_pro,eer
     
     # 测试SI 
     def speaker_identification(self, distances, enroll_y):

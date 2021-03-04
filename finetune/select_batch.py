@@ -17,7 +17,7 @@ sys.path.append("../")
 import usedModels.Att_DCNN as Att_DCNN
 
 alpha = 0.2
-CANDIDATES_PER_BATCH = 640  # 每个batch的候选人有640个说话人
+CANDIDATES_PER_BATCH = 32  # 每个batch的候选人有x句话，x/2个说话人   # SECNN要改成64
 HIST_TABLE_SIZE = 10
 DATA_STACK_SIZE = 10    # stack大小超过10就要休眠0.01秒
 
@@ -57,6 +57,9 @@ def preprocess(unique_speakers,spk_utt_dict,candidates=CANDIDATES_PER_BATCH):
     x,y = to_inputs(files)   # x.shape=(640,299,40,1) y.shape=(640)  320人，每人两个音频
     return x,y
 
+def standard_normaliztion(x_array,epsilon=1e-12):
+        return np.array([(x-np.mean(x))/max(np.std(x),epsilon) for x in x_array])
+
 # 产生输入
 def to_inputs(files):
     new_x = []
@@ -65,6 +68,7 @@ def to_inputs(files):
         with open(filename,"rb") as f:
             load_dict = pickle.load(f)
             x = load_dict["LogMel_Features"]
+            x = standard_normaliztion(x)
             x = x[:, :, np.newaxis]
             new_x.append(x)
         y.append(os.path.basename(filename).split("_")[0])
@@ -103,13 +107,14 @@ def addstack(unique_speakers, spk_utt_dict,candidates=CANDIDATES_PER_BATCH):
 def getbatch():
     while True:
         if len(stack)==0:
+            sleep(0.01)
             continue
         else:
             # print("len(stack)",len(stack))
             return stack.pop(0)
 
 
-# 选择最好的batch
+# 选择最好的batch,从候选集的x/2个说话人中取16个说话人，每个人3句话
 hist_embeds = None
 hist_labels = None
 hist_features = None
@@ -119,8 +124,9 @@ def best_batch(model,batch_size,candidates=CANDIDATES_PER_BATCH):
     orig_time = time()
     global hist_embeds, hist_features, hist_labels, hist_index, hist_table_size
     features,labels = getbatch()
-    # print("get batch time {0:.3}s".format(time() - orig_time))
-    orig_time = time()
+    print("get batch time {0:.3}s".format(time() - orig_time))
+    
+    # orig_time = time()
     embeds = model.predict_on_batch(features)  # (640,512)
     # print("forward process time {0:.3}s".format(time()-orig_time))
     if hist_embeds is None:
@@ -144,7 +150,6 @@ def best_batch(model,batch_size,candidates=CANDIDATES_PER_BATCH):
     negative_batch = []
     anchor_labs, positive_labs, negative_labs = [], [],  []
     
-    orig_time = time()
     anh_speakers = np.random.choice(hist_labels, int(batch_size/2), replace=False)  # 从labels中随机选batch_size/2个标签
     anchs_index_dict = {} # key=说话人标签spk value=该说话人在hist_labels中的所有下标
     inds_set = []
@@ -156,8 +161,11 @@ def best_batch(model,batch_size,candidates=CANDIDATES_PER_BATCH):
     speakers_embeds = hist_embeds[inds_set]  # 选出不同说话人的嵌入
     sims = matrix_cosine_similarity(speakers_embeds, hist_embeds) # 不同说话人的嵌入矩阵与当前所有说话人的嵌入矩阵做矩阵乘法  (batch_size/2，len(hist_labels))
 
+    # print("predict time {0:.3}s".format(time()-orig_time))
     # print('beginning to select..........')
     
+    
+    # orig_time = time()
     for ii in range(int(batch_size/2)):   #每一轮找出两对triplet pairs
         while True:
             speaker = anh_speakers[ii]

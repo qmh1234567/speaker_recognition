@@ -76,6 +76,10 @@ def create_test_data(dataset,check_partial):
     # print("save to csv success")
     return to_inputs(test_batch,num_triplets)
 
+def standard_normaliztion(x_array,epsilon=1e-12):
+        return np.array([(x-np.mean(x))/max(np.std(x),epsilon) for x in x_array])
+
+
 # 构建输入和输出
 def to_inputs(dataset_batch,num_triplets):
         new_x = []
@@ -85,6 +89,7 @@ def to_inputs(dataset_batch,num_triplets):
             with open(filename,"rb") as f:
                 load_dict = pickle.load(f)
                 x = load_dict["LogMel_Features"]
+                x = standard_normaliztion(x)
                 x = x[:, :, np.newaxis]
                 new_x.append(x)
 

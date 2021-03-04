@@ -56,8 +56,8 @@ LEARN_RATE = 0.0001 # 学习率 libri数据集的学习率修改成0.001试试 0
 
 
 EPOCHS = 50
-TEST_PER_EPOCHS = 200   # 多少轮测试一下
-SAVE_PER_EPOCHS = 200   # 多少轮保存一下
+TEST_PER_EPOCHS = 500   # 多少轮测试一下
+SAVE_PER_EPOCHS = 500   # 多少轮保存一下
 ANNONATION_FILE = './../dataset/annonation.csv'
 
 # 设置log输出到控制台
@@ -112,8 +112,8 @@ def data_producer(dataset):
 #         return (X,Y)
 
     
-def train(model,dataLoad,hparams):
-    Num_Iter = 10001
+def train(model,dataLoad,util,hparams):
+    Num_Iter = 100001
     current_iter = 0
     grad_steps = 0
     lasteer = 10
@@ -140,35 +140,23 @@ def train(model,dataLoad,hparams):
     # 配置模型
     # model.load_weights(f'{model_dir}/best.h5', by_name='True') # 加载预训练权重
     
-    model.load_weights(f'{model_dir}/best1.h5', by_name='True')
+    model.load_weights(f'{model_dir}/6.55_300.h5', by_name='True')
     
     sgd = optimizers.SGD(lr=LEARN_RATE,momentum=0.9) #TIMIT libri-seresnet
     model.compile(optimizer=sgd, loss=deep_speaker_loss)
     
     
-    # # 训练
-    # model.fit(train_generator(train_dataset,model,hparams.batch_size),
-    #                     steps_per_epoch=200,epochs=EPOCHS,shuffle=False,
-    #                     validation_data=test_generator(val_dataset),
-    #                     validation_steps=50,
-    #                     callbacks=[
-    #                         ModelCheckpoint(f'{model_dir}/bestft.h5',
-    #                             monitor='val_loss', save_best_only=True, mode='min'),
-    #                         ReduceLROnPlateau(monitor='val_loss', factor=0.1,
-    #                             patience=50, mode='min'),
-    #                         EarlyStopping(monitor='val_loss', patience=10),
-    #                         # history,
-    # ])
-    
     # 数据生成器
     data_producer(train_dataset)
-    
-    dataLoad = DataLoad.DataLoad()
     
     while current_iter <Num_Iter:
         current_iter += 1
         
         x,y = select_batch.best_batch(model,hparams.batch_size)
+        
+        # batch= stochastic_mini_batch(train_dataset,hparams.batch_size)
+        # x,y = batch.to_inputs()  #(96,299,40,1)
+        
         # y = np.random.uniform(size=(x.shape[0], 1))
         # y = np.random.uniform(size=(x.shape[0], 1))
         
@@ -180,41 +168,51 @@ def train(model,dataLoad,hparams):
         logging.info('== Processed in {0:.2f}s by the network, training loss = {1}.'.format(time() - orig_time, loss))
     
         # 每10步评估一下模型
-        if (grad_steps) % 10 == 0:
+        if (grad_steps) % 200 == 0:
             
             fm1, acc1, eer1 = eval_model(model,test_dataset, hparams.batch_size*hparams.triplet_per_batch, check_partial=True)
             logging.info('test training data EER = {0:.3f}, F-measure = {1:.3f}, Accuracy = {2:.3f} '.format(eer1, fm1, acc1))
             
-            with open(f'{best_model_dir}/train_acc_eer.txt', "a") as f:
-                f.write("{0},{1},{2},{3}\n".format(grad_steps, eer1, fm1, acc1))
+            # with open(f'{best_model_dir}/train_acc_eer.txt', "a") as f:
+            #     f.write("{0},{1},{2},{3}\n".format(grad_steps, eer1, fm1, acc1))
 
         # 每200步，测试一下模型
         if (grad_steps ) % TEST_PER_EPOCHS == 0 :
             
-            fm, acc, eer = eval_model(model,test_dataset,hparams.batch_size*hparams.triplet_per_batch,check_partial=False) # 修改
+            fm, acc, eer = eval_model(model,test_dataset,hparams.batch_size*hparams.triplet_per_batch,check_partial=True) # 修改
             
             logging.info('== Testing model after batch #{0}'.format(grad_steps))
             logging.info('EER = {0:.3f}, F-measure = {1:.3f}, Accuracy = {2:.3f} '.format(eer, fm, acc))
             
-            with open(f'{best_model_dir}/test_log.txt', "a") as f:
-                f.write("{0},{1},{2},{3}\n".format(grad_steps, eer, fm, acc))
+            # with open(f'{best_model_dir}/test_log.txt', "a") as f:
+            #     f.write("{0},{1},{2},{3}\n".format(grad_steps, eer, fm, acc))
 
         # 每200步保存一下模型
         if (grad_steps ) % SAVE_PER_EPOCHS == 0:
+            print("===saving model====")
             
-            model.save_weights('{0}/model_{1}_{2:.5f}.h5'.format(model_dir, grad_steps, eer))
+            model_path = '{0}/model_{1}_{2:.4f}.h5'.format(model_dir, grad_steps, eer)
+                        
+            model.save_weights(model_path)
             
-            if eer < lasteer:
+            # 测试模型
+            final_eer= getEER(model,dataLoad,hparams,util,model_path)
+            logging.info('final_EER = {0:.4f} ref_EER = {1:.4f} '.format(final_eer,eer))
+            
+            with open(f'{best_model_dir}/eval_log.txt', "a") as f:
+                f.write("{0},{1:.4f},{2:.4f}\n".format(grad_steps, final_eer, eer))
+            
+            if final_eer < lasteer:
                 files = sorted(filter(lambda f: os.path.isfile(f) and f.endswith(".h5"),
                                       map(lambda f: os.path.join(best_model_dir, f), os.listdir(best_model_dir))),
                                key=lambda file: file.split('/')[-1].split('.')[-2], reverse=True)
-                lasteer = eer  # 更新eer
+                lasteer = final_eer  # 更新eer
                 
                 for file in files[:-4]:
                     logging.info("removing old model: {}".format(file))
                     os.remove(file)
                     
-                model.save_weights(best_model_dir+'/best_model{0}_{1:.5f}.h5'.format(grad_steps, eer))
+                model.save_weights(best_model_dir+'/best_model{0}_{1:.4f}.h5'.format(grad_steps, final_eer))
                 
         grad_steps += 1
 
@@ -223,17 +221,47 @@ def main(hparams):
         
     model = createModel(hparams.model_name)
 
-    dataLoad = DataLoad.DataLoad()
+    dataLoad = DataLoad.DataLoad('./../dataset/annonation.csv')
+    
+    util = Util.Util()
     
     if hparams.stage.startswith('train'):
         
-        train(model,dataLoad,hparams)
+        train(model,dataLoad,util,hparams)
         
-    else:
-        util = Util.Util()
-        
-        test(model,dataLoad,util,hparams)
+ 
+
+def getEER(model,dataLoad,hparams,util,model_path):
     
+    eval_dataset, enroll_dataset = dataLoad.createTestDataSet(
+            hparams.test_pk_dir,target=hparams.target, split_ratio=0.5)
+    
+    model.load_weights(model_path, by_name='True')
+        
+    # load enroll data
+    print("loading data...") 
+    (enroll_x, enroll_y) = dataLoad.load_all_data(enroll_dataset, 'enroll')
+    
+    (eval_x, eval_y) = dataLoad.load_all_data(eval_dataset, 'test')
+
+    # 预测  主要获取说话人嵌入
+    enroll_pre = np.squeeze(model.predict(enroll_x))
+
+    eval_pre = np.squeeze(model.predict(eval_x))
+    
+    # 计算余弦距离
+    distances = util.caculate_distance(enroll_dataset,enroll_pre, eval_pre)
+
+    df = pd.read_csv(dataLoad.ANNONATION_FILE)
+
+    
+    ismember_true = df['Ismember'].tolist()
+    
+    ismember_pre,eer = util.speaker_verification(distances, ismember_true)
+    
+    return eer
+        
+
 
 
 if __name__ == "__main__":
@@ -248,11 +276,17 @@ if __name__ == "__main__":
     
     parser.add_argument("--target",type=str,required=True,help="SV or SI ,which is used in test stage",choices=["SV","SI"])
     
+    # parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train/") # 更换数据集时要修改
+    
+    # parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test/")  # 更换数据集时要修改
+    
+     # librispeech
     parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/train-clean-100/") # 更换数据集时要修改
     
-    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/test-clean/")  # 更换数据集时要修改
+    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/test-clean/")  
     
-    parser.add_argument("--batch_size",type=int,default=32)
+    
+    parser.add_argument("--batch_size",type=int,default=16)
     
     parser.add_argument("--triplet_per_batch",type=int,default=3)
     args = parser.parse_args()
