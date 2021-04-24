@@ -128,7 +128,8 @@ class PlotDET():
         # 画图
         plt = self.plot_DET_curve()
         x, y = norm.ppf(frr), norm.ppf(far)
-        plt.plot(x, y,label='SECNN model')
+        linestyles = ['-.','-',':']
+        plt.plot(x, y,label='SECNN model',linestyle=':')
         plt.legend(fontsize=12)
         plt.xlabel('False Alarm probability(in %)', fontsize=12)
         plt.ylabel('Miss probability', fontsize=12)
@@ -159,15 +160,17 @@ class PlotDET():
         # d_frr,d_far = self.compute_frr_far(d_y_true, d_y_pre)
         
         # 画图
+        linestyles = ['-.','-',':']
+        
         plt = self.plot_DET_curve()
         x, y = norm.ppf(b_frr), norm.ppf(b_far)
-        plt.plot(x, y,label='SECNN model')
+        plt.plot(x, y,label='SECNN model',linestyle = '-.')
         
         x1,y1 = norm.ppf(p_frr),norm.ppf(p_far)
-        plt.plot(x1,y1,label='Attentive CNN model')
+        plt.plot(x1,y1,label='Attentive CNN model',linestyle = '-',marker='|')
         
         # x2,y2 = norm.ppf(d_frr),norm.ppf(d_far)
-        # plt.plot(x2,y2,label='Deep Speaker model')
+        # plt.plot(x2,y2,label='Deep Speaker model',linestyle = ':')
         
         plt.plot([-40, 1], [-40, 1])
         plt.legend(fontsize=12)
@@ -206,9 +209,9 @@ if __name__ == "__main__":
      
     parser.add_argument("--y_pre_p",type=str,help="the proposed model's true lable file",default="./../dataset/Att_y_pre.npy")
     
-    # parser.add_argument("--y_true_d",type=str,help="the proposed model's true lable file",default="./../dataset/Deep_y_true.npy")
+    parser.add_argument("--y_true_d",type=str,help="the proposed model's true lable file",default="./../dataset/Deep_y_true.npy")
      
-    # parser.add_argument("--y_pre_d",type=str,help="the proposed model's true lable file",default="./../dataset/Deep_y_pre.npy")
+    parser.add_argument("--y_pre_d",type=str,help="the proposed model's true lable file",default="./../dataset/Deep_y_pre.npy")
     
     args = parser.parse_args()
     

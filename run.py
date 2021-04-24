@@ -111,12 +111,12 @@ def train(model,dataLoad,hparams):
     history.loss_plot('epoch',dataSetName,hparams.model_name)
     
 
-def test(model,dataLoad,util,hparams):
+def test(model,dataLoad,util,hparams,split_ratio):
     
     # print(model.summary())
     
     eval_dataset, enroll_dataset = dataLoad.createTestDataSet(
-            hparams.test_pk_dir,target=hparams.target, split_ratio=0.5)
+            hparams.test_pk_dir,target=hparams.target, split_ratio=split_ratio)
     
     dataSetName = hparams.train_pk_dir.split("/")[-3].split("_")[0].lower()
     
@@ -126,8 +126,8 @@ def test(model,dataLoad,util,hparams):
     # load weights
     model_dir = os.path.join(MODEL_DIR + hparams.model_name,dataSetName)
     
-    # model.load_weights(f'{model_dir}/13.57_98.h5',by_name='True') 
-    model.load_weights(f'{model_dir}/save/best_model18500_0.0554.h5', by_name='True')
+    # model.load_weights(f'{model_dir}/5.82_300.h5',by_name='True') 
+    model.load_weights(f'{model_dir}/best1.h5', by_name='True')
         
     # load enroll data
     print("loading data...") 
@@ -159,10 +159,11 @@ def test(model,dataLoad,util,hparams):
             'isRight':result
         }
         
-        data = pd.DataFrame(data_dict)
-        data.to_csv('result.csv', index=0)
+        # data = pd.DataFrame(data_dict)
+        # data.to_csv('result.csv', index=0)
         score = sum(result)/len(result)
         print(f"score={score}")
+        return score
     else:
         
         # keras.backend.set_learning_phase(1)
@@ -194,13 +195,14 @@ def test(model,dataLoad,util,hparams):
         # print(f'eer={eer}\t fm={fm} \t acc={acc}\t')
         
         # np.save('./npys/perfect_noELU.npy',distances)
-        ismember_pre,_ = util.speaker_verification(distances, ismember_true)
+        ismember_pre,eer = util.speaker_verification(distances, ismember_true)
         
-        # compute result
-        result = util.compute_result(ismember_pre, ismember_true)
+        # # compute result
+        # result = util.compute_result(ismember_pre, ismember_true)
         
-        score = sum(result)/len(result)
-        print(f"score={score}")
+        # score = sum(result)/len(result)
+        # print(f"score={score}")
+        return eer
 
 def main(hparams):    
         
@@ -212,12 +214,28 @@ def main(hparams):
         
         train(model,dataLoad,hparams)
         
-    else:
-        util = Util.Util()
         
-        test(model,dataLoad,util,hparams)
-    
-
+    else:
+        
+        util = Util.Util()
+        # SECNN  [0.07157250470809794, 0.04495762711864409, 0.03536319612590798, 0.029830508474576287, 0.028830508474576286, 0.031525423728813576, 0.021440677966101704, 0.028135593220338997, 0.013389830508474585]
+        # Attentive CNN  [0.050555555555555555, 0.03866525423728812, 0.03493946731234865, 0.03697740112994348, 0.03579661016949154, 0.04203389830508476, 0.031073446327683614, 0.033220338983050865, 0.04330508474576273]
+        # deep Spk [0.0728436911487759, 0.06974576271186439, 0.06548426150121066, 0.06344632768361583, 0.06166101694915252, 0.06050847457627122, 0.06553672316384179, 0.06093220338983053, 0.08067796610169489]
+        score_list = []
+        # test(model,dataLoad,util,hparams)
+        
+        # SI 0.7   SV:0.3
+        split_ratio = 0.5
+        test(model,dataLoad,util,hparams,split_ratio)
+        
+        # for split_ratio in split_list:
+        #     score = test(model,dataLoad,util,hparams,split_ratio)
+        #     score_list.append(score)
+            
+        # print(score_list)
+        
+        
+        
 
 if __name__ == "__main__":
     
@@ -232,11 +250,11 @@ if __name__ == "__main__":
     parser.add_argument("--target",type=str,required=True,help="SV or SI ,which is used in test stage",choices=["SV","SI"])
     
     # TIMIT
-    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train")
-    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test")  
+    # parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/train")
+    # parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test")  
     
-    # parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/train-clean-100/") # 更换数据集时要修改
-    # parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/test-clean/")     
+    parser.add_argument("--train_pk_dir",type=str,help="train pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/train-clean-100/") # 更换数据集时要修改
+    parser.add_argument("--test_pk_dir",type=str,help="test pickle dir",default="/home/qmh/Projects/Datasets/LibriSpeech_O/test-clean/")     
     
     args = parser.parse_args()
     

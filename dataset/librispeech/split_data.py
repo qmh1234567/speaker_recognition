@@ -17,6 +17,7 @@ for line in open(ftest):
 fenroll = open('./enroll_utt2spk', 'w')  # 注册集 每人3句话
 feval = open('./eval_utt2spk', 'w')   # 评估集  每人剩下的句子
 
+
 for key in dictutt:
   utts = dictutt[key]
   random.shuffle(utts)

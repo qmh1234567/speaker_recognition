@@ -21,6 +21,13 @@ class VggVox():
       self.WEIGHT_DECAY =  0.00001 
       
     def basic_block(self,x,filters,strides,name):
+        
+        # shortcut
+        shortcut = Conv2D(filters,(1,1),strides=strides,padding='same',name=f'{name}_shcut')(x)
+    
+        shortcut = BatchNormalization(name=f'{name}_stbn')(shortcut)
+        
+        
          #block a
         x = Conv2D(filters,(3,3),strides=strides,padding='same',
             kernel_regularizer = regularizers.l2(l=self.WEIGHT_DECAY),name=f'{name}_conva')(x)
@@ -34,12 +41,7 @@ class VggVox():
             kernel_regularizer = regularizers.l2(l=self.WEIGHT_DECAY),name=f'{name}_convb')(x)
         
         x = BatchNormalization(name=f'{name}_bnb')(x) 
-        
-        # shortcut
-        shortcut = Conv2D(filters,(1,1),strides=strides,padding='same',name=f'{name}_shcut')(x)
     
-        shortcut = BatchNormalization(name=f'{name}_stbn')(x)
-        
         x = Add(name=f'{name}_add')([x,shortcut])
         
         x = Activation('relu',name=f'{name}_relu')(x)
@@ -77,7 +79,7 @@ class VggVox():
         
         x = BatchNormalization(name=f'{name}_bn3')(x)
 
-        x = Add(name=f'{name}_scut')([identity,x])
+        x = Add(name=f'{name}_scut')([x,identity])
         
         x = Activation('relu',name=f'{name}_relu3')(x)
         
@@ -99,35 +101,39 @@ class VggVox():
         x = MaxPool2D((3,3),strides=(2,2),padding='same',name='pool1')(x)
         
         for i in range(1,4):
-            # x = self.basic_block(x,64,(1,1),name=f'block{i}')
-            x = self.bottle_neck(x,256,f'block{i}')
+            x = self.basic_block(x,64,(1,1),name=f'block{i}')
+            # x = self.bottle_neck(x,256,f'block{i}')
 
         for i in range(4,8):
             stride = (2,2) if i==4 else (1,1)
-            # x = self.basic_block(x,128,stride,name=f'block{i}')
-            x = self.bottle_neck(x,512,f'block{i}',stride)
+            x = self.basic_block(x,128,stride,name=f'block{i}')
+            # x = self.bottle_neck(x,512,f'block{i}',stride)
     
-        # for i in range(8,14):
-        #     stride = (2,2) if i==8 else (1,1)
-        #     # x = self.basic_block(x,256,stride,name=f'block{i}')
-        #     x = self.bottle_neck(x,1024,f'block{i}',stride)
+        for i in range(8,14):
+            stride = (2,2) if i==8 else (1,1)
+            x = self.basic_block(x,256,stride,name=f'block{i}')
+        #     # x = self.bottle_neck(x,256,f'block{i}',stride)
 
-        # for i in range(14,17):
-        #     stride = (2,2) if i==14 else (1,1)
-        #     # x = self.basic_block(x,512,stride,name=f'block{i}')
-        #     x = self.bottle_neck(x,2048,f'block{i}',stride)
+        for i in range(14,17):
+            stride = (2,2) if i==14 else (1,1)
+            x = self.basic_block(x,512,stride,name=f'block{i}')
+        #     # x = self.bottle_neck(x,512,f'block{i}',stride)
         
         # avgpool
         x = Lambda(lambda y: K.mean(y,axis=[1,2]),name='avgpool')(x)
 
         x = Dense(512,name='fc1')(x)
         
+        x = BatchNormalization(name='bn_fc1')(x)  
+        
+        x = Activation('relu',name='fc1_relu')(x)
+        
         # x = BatchNormalization(name='bn_fc1')(x)
         
         # x = Activation('relu',name=f'relu1')(x) 
         
         # # 归一化
-        x = Lambda(lambda y:K.l2_normalize(y,axis=1),name='ln')(x)
+        # x = Lambda(lambda y:K.l2_normalize(y,axis=1),name='ln')(x)
         
         model = Model(inputs=[x_in],outputs=[x],name='res-34')
         

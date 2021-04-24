@@ -82,14 +82,15 @@ def auc_plot():
 
 def main():
     dataSetName = "librispeech"
-    model_names1 = ["AttDCNN","SEResNet","deepSpk"]
-    model_names = ["Attentive DCNN","SECNN","Deep Speaker"]
+    model_names1 = ["AttDCNN","SEResNet","deepSpk","VggVox"]
+    model_names = ["Attentive DCNN","SECNN","Deep Speaker","VggVox"]
     plt.figure()
+    linestyles = ['-.','-',':','--']
     for i in range(len(model_names)):
         dir1 = os.path.join("../npy/"+dataSetName,model_names1[i])
-        accuracy = np.load(dir1+"/accuracy.npy")
+        # accuracy = np.load(dir1+"/accuracy.npy")
         losses = np.load(dir1+"/losses.npy")
-        val_acc = np.load(dir1+"/val_acc.npy")
+        # val_acc = np.load(dir1+"/val_acc.npy")
         val_loss = np.load(dir1+"/val_loss.npy")
         iters = range(len(losses))
         # acc
@@ -97,14 +98,14 @@ def main():
         # loss
         # plt.plot(iters, losses, label=model_name+'_train loss')
         # val_acc
-        plt.plot(iters,val_acc, label=model_names[i]+'_val acc')
+        # plt.plot(iters,val_acc, label=model_names[i]+'_val acc',linestyle=linestyles[i])
         # val_loss
-        plt.plot(iters, val_loss, label=model_names[i]+'_val loss')
+        plt.plot(iters, val_loss, label=model_names[i]+'_val loss',linestyle=linestyles[i])
     # plt.ylim(0,max(self.losses[loss_type]))
     plt.grid(True)
     plt.xlabel('epoch')
-    plt.ylabel('acc-loss')
-    plt.legend(loc="upper right")
+    plt.ylabel('val loss')
+    plt.legend()
     plt.show()
 
 
@@ -114,7 +115,7 @@ if __name__ == "__main__":
     # model_name = sys.argv[2]
     
     # loss_plot(dataSetName,model_name)
-    # main()
+    main()
     # python run.py --stage="test" --model_name="deepSpk" --target="SV"
     
-    auc_plot()
+    # auc_plot()

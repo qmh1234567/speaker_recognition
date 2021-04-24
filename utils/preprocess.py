@@ -19,37 +19,7 @@ from pydub import AudioSegment
 import wave
 import logging
 import math
-
-
-# class SilenceDetector(object):
-#     def __init__(self, threshold=20, bits_per_sample=16):
-#         self.cur_SPL = 0
-#         self.threshold = threshold
-#         self.bits_per_sample = bits_per_sample
-#         self.normal = pow(2.0, bits_per_sample - 1)
-#         self.logger = logging.getLogger('balloon_thrift')
-
-#     def is_silence(self, chunk):
-#         self.cur_SPL = self.soundPressureLevel(chunk)
-#         is_sil = self.cur_SPL < self.threshold
-#         # print('cur spl=%f' % self.cur_SPL)
-#         if is_sil:
-#             self.logger.debug('cur spl=%f' % self.cur_SPL)
-#         return is_sil
-    
-#     def soundPressureLevel(self, chunk):
-#         value = math.pow(self.localEnergy(chunk), 0.5)
-#         value = value / len(chunk) + 1e-12
-#         value = 20.0 * math.log(value, 10)
-#         return value
-
-#     def localEnergy(self, chunk):
-#         power = 0.0
-#         for i in range(len(chunk)):
-#             sample = chunk[i] * self.normal
-#             power += sample*sample
-#         return power
-
+import pandas as pd
 
 class Preprocess():
     def __init__(self, hparams):
@@ -74,6 +44,11 @@ class Preprocess():
 
         bar = Bar("Processing", max=(len(path_list)),
                   fill='#', suffix='%(percent)d%%')
+
+        lengths = []
+        audio_names = []
+        pickle_paths = []
+        speakers = []
         # 对每个音频进行预处理
         for path in path_list:
             bar.next()
@@ -84,10 +59,23 @@ class Preprocess():
             if sample_rate != 16000:
                 print("sample rate do meet the requirement")
                 exit()
+            lengths.append(wav_arr.shape[0]/sample_rate)
+            audio_names.append(path.split('/')[-1])
             # padding 音频裁减
             wav_arr = self.cut_audio(wav_arr,sample_rate)
             # 提取特征并保存
-            self.create_pickle(path, wav_arr, sample_rate)
+            pickleName,label = self.create_pickle(path, wav_arr, sample_rate)
+            pickle_paths.append(pickleName)
+            speakers.append(label)
+        data_dict = {
+            'pickle_path':pickle_paths,
+            'name':audio_names,
+            'speaker':speakers,
+            'length':lengths,
+            'audio_path':path_list,
+        }
+        data = pd.DataFrame(data_dict)
+        data.to_csv('./timit.csv', index=0)
         bar.finish()
     
     # 裁减音频
@@ -182,15 +170,18 @@ class Preprocess():
             
             elif self.hparams.data_type == 'mit':
                 data_id = "_".join(path.split("/")[-2:])
-                save_dict["SpkId"] = path.split("/")[-2]
                 pickle_f_name = data_id.replace("wav", "pickle")
 
             if not os.path.exists(self.hparams.pk_dir):
                 os.mkdir(self.hparams.pk_dir)
             with open(self.hparams.pk_dir + "/" + pickle_f_name, "wb") as f:
                 pickle.dump(save_dict, f, protocol=3)
+                
+            audio_label = os.path.basename(pickle_f_name).split("_")[0]
         else:
             print("wav length smaller than 1.6s: " + path)
+            
+        return os.path.join(self.hparams.pk_dir ,pickle_f_name),audio_label
 
     # 绘制音频
     def draw_waveform(self,wav_arr,sample_rate):
@@ -251,7 +242,7 @@ def main():
 
     # timit
     # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/train/ --pk_dir=/home/qmh/Projects/Datasets/TIMIT_M/train/ --data_type=mit
-    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/test/ --pk_dir=/home/qmh/Projects/Datasets/TIMIT_M/test/ --data_type=mit
+    # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT/test/ --pk_dir=/home/qmh/Projects/Datasets/TIMIT_M/TIMIT_OUTPUT/test/ --data_type=mit
     # libri    
     # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/LibriSpeech/train-clean-100/ --pk_dir=/home/qmh/Projects/Datasets/LibriSpeech_O/train-clean-100/ --data_type=libri
     # python preprocess.py --in_dir=/home/qmh/Projects/Datasets/LibriSpeech/test-clean/ --pk_dir=/home/qmh/Projects/Datasets/LibriSpeech_O/test-clean/ --data_type=libri

@@ -88,11 +88,11 @@ class Util():
         # 由于余弦距离可能是负值，故需要平移一下
         distance_max = (distance_max + 1) / 2
         
-        # np.save("./dataset/SE_y_pre.npy",distance_max)
-        # np.save("./dataset/SE_y_true.npy",ismember_true)
+        np.save("./dataset/SE_y_pre.npy",distance_max)
+        np.save("./dataset/SE_y_true.npy",ismember_true)
         
-        np.save("./dataset/Att_y_pre.npy",distance_max)
-        np.save("./dataset/Att_y_true.npy",ismember_true)
+        # np.save("./dataset/Att_y_pre.npy",distance_max)
+        # np.save("./dataset/Att_y_true.npy",ismember_true)
         
         # np.save("./dataset/Deep_y_pre.npy",distance_max)
         # np.save("./dataset/Deep_y_true.npy",ismember_true)
