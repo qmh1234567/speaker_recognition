@@ -31,6 +31,8 @@ import usedModels.Deep_Speaker as Deep_Speaker
 import usedModels.VggVox as VggVox
 import usedModels.SE_ResNet as SE_ResNet
 import usedModels.Att_DCNN as Att_DCNN
+import usedModels.D_Vector as D_Vector
+import usedModels.X_Vector as X_Vector
 
 import utils.DataLoad as DataLoad
 import utils.Util as Util
@@ -48,7 +50,7 @@ sess = tf.compat.v1.Session(config=config)
 MODEL_DIR = './checkpoint/' # 模型保存目录
 LEARN_RATE = 0.01 # 学习率
 BATCH_SIZE = 32
-EPOCHS = 300 # 训练轮次
+EPOCHS = 20 # 训练轮次
 
 # 选择模型
 def createModel(modelName,input_shape=(299,40,1)):
@@ -60,6 +62,10 @@ def createModel(modelName,input_shape=(299,40,1)):
         model = SE_ResNet.SE_ResNet().se_resNet(input_shape)
     elif modelName == "AttDCNN":
         model = Att_DCNN.Att_DCNN().proposed_model(input_shape)
+    elif modelName == "D_Vector":
+        model = D_Vector.D_Vector().d_vector(input_shape)
+    elif modelName == "X_Vector":
+        model = X_Vector.X_Vector().x_vector(input_shape)
     print(model.summary())
     return model
 
@@ -76,7 +82,7 @@ def train(model,dataLoad,hparams):
     dataSetName = hparams.train_pk_dir.split("/")[-3].split("_")[0].lower()
     
     model_dir = os.path.join(MODEL_DIR + hparams.model_name,dataSetName)
-        
+    
     if not os.path.exists(model_dir):
             os.mkdir(model_dir)
             
@@ -89,7 +95,10 @@ def train(model,dataLoad,hparams):
     # train model
     history = LossHistory.LossHistory()
     
+    # model.load_weights(f'{model_dir}/best_save.h5', by_name='True')
+    
     sgd = optimizers.SGD(lr=LEARN_RATE,momentum=0.9) #TIMIT libri-seresnet
+    
     
     model.compile(loss='categorical_crossentropy', optimizer=sgd,
                     metrics=['accuracy'])
@@ -110,6 +119,7 @@ def train(model,dataLoad,hparams):
     # 绘制loss曲线
     history.loss_plot('epoch',dataSetName,hparams.model_name)
     
+    
 
 def test(model,dataLoad,util,hparams,split_ratio):
     
@@ -126,8 +136,8 @@ def test(model,dataLoad,util,hparams,split_ratio):
     # load weights
     model_dir = os.path.join(MODEL_DIR + hparams.model_name,dataSetName)
     
-    # model.load_weights(f'{model_dir}/5.82_300.h5',by_name='True') 
-    model.load_weights(f'{model_dir}/best1.h5', by_name='True')
+    model.load_weights(f'{model_dir}/5.82_300.h5',by_name='True') 
+    # model.load_weights(f'{model_dir}/best1.h5', by_name='True')
         
     # load enroll data
     print("loading data...") 
@@ -201,8 +211,96 @@ def test(model,dataLoad,util,hparams,split_ratio):
         # result = util.compute_result(ismember_pre, ismember_true)
         
         # score = sum(result)/len(result)
-        # print(f"score={score}")
+        # print(f"score={score}")        
         return eer
+    
+    
+## 使用标准的测试方法
+def getEnrollSpeaker(enroll_dataset,dataLoad,model):
+    (enroll_x, enroll_y) = dataLoad.load_all_data(enroll_dataset, 'enroll')
+    # 预测  主要获取说话人嵌入
+    enroll_pre = np.squeeze(model.predict(enroll_x))
+    
+    dict_count = Counter(enroll_dataset[1])
+     # each person get a enroll_pre
+    enroll_dict = {
+        
+    }
+    # 得到注册说话人 remove repeat
+    enroll_speakers = list(set(enroll_dataset[1]))
+    enroll_speakers.sort(key=enroll_dataset[1].index)
+    
+    for speaker in enroll_speakers:
+        start = enroll_dataset[1].index(speaker)
+        speaker_pre = enroll_pre[start:dict_count[speaker]+start]
+        enroll_dict[speaker] = np.mean(speaker_pre, axis=0)
+        # speakers_pre.append(np.mean(speaker_pre, axis=0))
+    return enroll_dict
+        
+def standard_normaliztion(x_array,epsilon=1e-12):
+        return np.array([(x-np.mean(x))/max(np.std(x),epsilon) for x in x_array])
+    
+def test1(model,dataLoad,util,hparams,split_ratio):
+    
+    dataSetName = hparams.train_pk_dir.split("/")[-3].split("_")[0].lower()
+    
+    dataSetDir = os.path.join("./dataset",dataSetName)
+    
+    annotation_file = os.path.join(dataSetDir,"speaker_ver.csv")
+    
+    enroll_file = os.path.join(dataSetDir,'enroll_utt2spk.csv')
+    
+    eval_df = pd.read_csv(annotation_file)
+    
+    enroll_df = pd.read_csv(enroll_file)
+    
+    eval_dataset = (eval_df['FilePath'].tolist(),eval_df['SpeakerID'].tolist())
+    enroll_dataset = (enroll_df['FilePath'].tolist(),enroll_df['SpeakerID'].tolist())
+    
+    # load weights
+    model_dir = os.path.join(MODEL_DIR + hparams.model_name,dataSetName)
+    
+    model.load_weights(f'{model_dir}/6.07_300.h5',by_name='True') 
+    # model.load_weights(f'{model_dir}/13.57_98.h5', by_name='True')
+        
+    # load enroll data
+    print("loading data...") 
+    # 获取注册说话人模型
+    enroll_speakers = getEnrollSpeaker(enroll_dataset,dataLoad,model)
+
+    # eval_pre = np.squeeze(model.predict(eval_x))
+        
+    ismember_true = eval_df['Ismember'].tolist()
+    
+    # 计算测试句子嵌入和说话人模型的相似度
+    (test_paths,labels) = eval_dataset
+    bar = Bar("Processing", max=(len(test_paths)),
+                  fill='#', suffix='%(percent)d%%')
+    distances = []
+    for i in range(len(test_paths)):
+        bar.next()
+        # 求测试句子嵌入
+        with open(test_paths[i],"rb") as f:
+            load_dict = pickle.load(f)
+            x = load_dict["LogMel_Features"]
+            x = standard_normaliztion(x)
+            x = x[np.newaxis,:, :, np.newaxis]
+        eval_x = np.array(x)
+        eval_pre = np.squeeze(model.predict(eval_x)) 
+        # 获取对应的说话人模型
+        enroll_pre = enroll_speakers[labels[i]]
+        # 计算余弦距离
+        s = np.dot(enroll_pre, eval_pre)/(np.linalg.norm(enroll_pre)*np.linalg.norm(eval_pre))  # 计算余弦距离
+        distances.append(s)
+        # print(len(distances))
+    bar.finish()
+    # 计算评估指标
+    y_pro, eer, prauc, acc, auc_score = util.evaluate_metrics(
+            ismember_true, distances)
+        
+    print(f'eer={eer}\t prauc={prauc} \t acc={acc}\t auc_score={auc_score}\t')
+    return eer
+
 
 def main(hparams):    
         
@@ -245,7 +343,7 @@ if __name__ == "__main__":
         
     parser.add_argument("--stage",type=str,required=True,help="train or test",choices=["train","test"])
 
-    parser.add_argument("--model_name",type=str,required=True,help="model's name",choices=["deepSpk","VggVox","SEResNet","AttDCNN"])
+    parser.add_argument("--model_name",type=str,required=True,help="model's name",choices=["deepSpk","VggVox","SEResNet","AttDCNN","D_Vector","X_Vector"])
     
     parser.add_argument("--target",type=str,required=True,help="SV or SI ,which is used in test stage",choices=["SV","SI"])
     
